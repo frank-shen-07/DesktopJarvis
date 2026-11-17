@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest something new DesktopJarvis could do, or a better way to do something
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to be able to do?
+      description: Describe the situation, not just the solution. For example, "I want to ask what's due this week and hear only the important things."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How might it work?
+      description: What you would say, what DesktopJarvis would do, and what you would see.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do today instead?
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to work on this myself
