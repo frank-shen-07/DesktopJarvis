@@ -20,9 +20,9 @@
   // To start a stretch, sound has to be at least this loud, and this many times louder
   // than the room. Once started, a stretch carries on through anything above the lower
   // pair, so the softer parts of words and the gaps between them do not break it up.
-  const START_LEVEL = 0.015;
-  const START_ABOVE_ROOM = 2.5;
-  const CARRY_ON_LEVEL = 0.012;
+  const START_LEVEL = 0.012;
+  const START_ABOVE_ROOM = 2.2;
+  const CARRY_ON_LEVEL = 0.01;
   const CARRY_ON_ABOVE_ROOM = 2;
   // Loud this long without a single quiet moment means the room itself got louder: a
   // fan, a vacuum, music. Nobody talks for this long without a breath.
@@ -76,7 +76,7 @@
    * wordMs: the shortest run of unbroken sound that counts as a word.
    * tailMs: quiet kept after the last word.
    */
-  function createSegmenter({ pauseMs, longestMs = 15_000, leadMs = 500, wordMs = 180, tailMs = 300 }) {
+  function createSegmenter({ pauseMs, longestMs = 15_000, leadMs = 500, wordMs = 150, tailMs = 300 }) {
     const room = createRoom();
     let lead = [];
     let blocks = null;

@@ -73,9 +73,9 @@ export async function transcribeOverheard(audio: Buffer, groqKey: string): Promi
   const noSpeech = first.no_speech_prob ?? 0;
   const confidence = first.avg_logprob ?? 0;
   let doubt = "";
-  if (noSpeech > 0.8 || (noSpeech > 0.6 && confidence < -0.5)) doubt = "probably not speech";
+  if (noSpeech > 0.8 || (noSpeech > 0.7 && confidence < -0.5)) doubt = "probably not speech";
   else if ((first.temperature ?? 0) > 0) doubt = "the recogniser had to guess";
-  else if (confidence < -1.2) doubt = "unclear";
+  else if (confidence < -1.4) doubt = "unclear";
   else if ((first.compression_ratio ?? 0) > 2.4) doubt = "garbled";
   return { text, doubt };
 }
