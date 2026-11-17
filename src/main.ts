@@ -8,6 +8,7 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  type NativeImage,
   nativeTheme,
   session,
   shell,
@@ -112,9 +113,52 @@ function registerShortcut(accelerator: string): boolean {
   }
 }
 
+// The menu bar icon, drawn in assets/tray-icon.svg; `npm run build:icon` makes these PNGs. A
+// template image is recoloured by macOS to suit light and dark menu bars, and the @2x copy of
+// each is used on Retina screens.
+const TRAY_DIR = path.join(app.getAppPath(), "dist", "tray");
+let trayIdle: NativeImage = nativeImage.createEmpty();
+let trayFire: { frames: NativeImage[]; intervalMs: number } = { frames: [], intervalMs: 0 };
+let trayFlicker: NodeJS.Timeout | undefined;
+
+function trayImage(name: string): NativeImage {
+  const image = nativeImage.createFromPath(path.join(TRAY_DIR, `${name}.png`));
+  image.setTemplateImage(true);
+  return image;
+}
+
+function loadTrayFire(): typeof trayFire {
+  try {
+    const { frames, intervalMs } = JSON.parse(fs.readFileSync(path.join(TRAY_DIR, "frames.json"), "utf8"));
+    return { frames: Array.from({ length: frames }, (_, i) => trayImage(`trayFire${i}Template`)), intervalMs };
+  } catch {
+    // Not built yet: the icon just stays still.
+    return { frames: [], intervalMs: 0 };
+  }
+}
+
+/** While a request is being worked on, the dragon's fire flickers in the menu bar. */
+function setTrayBusy(busy: boolean): void {
+  clearInterval(trayFlicker);
+  trayFlicker = undefined;
+  if (!tray) return;
+  if (!busy || !trayFire.frames.length) {
+    tray.setImage(trayIdle);
+    return;
+  }
+  let frame = 0;
+  trayFlicker = setInterval(() => {
+    tray?.setImage(trayFire.frames[frame]);
+    frame = (frame + 1) % trayFire.frames.length;
+  }, trayFire.intervalMs);
+}
+
 function createTray(): void {
-  tray = new Tray(nativeImage.createEmpty());
-  tray.setTitle("DesktopJarvis");
+  trayIdle = trayImage("trayTemplate");
+  trayFire = loadTrayFire();
+  tray = new Tray(trayIdle);
+  // Without the icon (not built yet) the menu bar would show nothing at all.
+  if (trayIdle.isEmpty()) tray.setTitle("DesktopJarvis");
   tray.setToolTip("DesktopJarvis");
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -208,6 +252,7 @@ function confirmWithPerson(request: { title: string; detail: string; action: str
 function cancelActiveTurn(): void {
   activeTurn?.abort();
   activeTurn = null;
+  setTrayBusy(false);
   for (const resolve of pendingConfirms.values()) resolve(false);
   pendingConfirms.clear();
 }
@@ -356,6 +401,7 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
   cancelActiveTurn();
   const controller = new AbortController();
   activeTurn = controller;
+  setTrayBusy(true);
   const turnId = crypto.randomUUID();
   // A turn that has been cancelled or replaced stays silent, so the window
   // only ever hears from the turn it is showing.
@@ -431,7 +477,10 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
     emit({ type: "done" });
   } finally {
     clearTimeout(slowAnswer);
-    if (activeTurn === controller) activeTurn = null;
+    if (activeTurn === controller) {
+      activeTurn = null;
+      setTrayBusy(false);
+    }
   }
 }
 

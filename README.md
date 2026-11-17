@@ -110,5 +110,7 @@ this Mac or a private network. Hermes Agent works the same way at
 - `src/board.ts` the cards shown for calendar, reminders, mail and lists
 - `src/localVoice.ts`, `voice/server.py` the free voice that runs on this Mac
 - `native/theo-events.swift` Calendar and Reminders bridge
+- `assets/tray-icon.svg` the menu bar dragon, whose fire flickers while DesktopJarvis is working;
+  open it in a browser to watch the animation, and run `npm run build:icon` after editing it
 - `renderer/` the window: React components with CSS Modules, built by Vite. See
   `renderer/README.md` for how it is laid out and how to work on it
