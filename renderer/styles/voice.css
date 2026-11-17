@@ -1,0 +1,43 @@
+/* The Voice tab. */
+
+.passage {
+  font: 17px/1.6 var(--body);
+  color: var(--bright);
+  padding-left: 16px;
+  border-left: 2px solid var(--blue);
+  max-width: 62ch;
+  user-select: text;
+}
+
+.record-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.record-time {
+  font: 14px/1 var(--mono);
+  color: var(--bright);
+  min-width: 4ch;
+}
+
+.file-pick {
+  color: var(--muted);
+}
+.file-pick input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.file-pick input:focus-visible + .linkish {
+  outline: 1px solid var(--bright);
+  outline-offset: 3px;
+}
+
+#record-button[data-recording="true"] {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: var(--void);
+}

@@ -1,0 +1,88 @@
+/* DesktopJarvis — a heads-up display. Everything is light drawn on a dark field:
+   electric blue for the machine, near-white for what the person says. */
+:root {
+  --void: #020812;
+  --deep: #061a33;
+  --panel: rgba(8, 34, 68, 0.42);
+  --edge: rgba(30, 167, 255, 0.32);
+  --blue: #1ea7ff;
+  --bright: #c8eeff;
+  --text: #a9d4f2;
+  --muted: #86b0d6;
+  --good: #3dffc0;
+  --bad: #ff5d7a;
+  /* The dragon's own colours: what it makes glows amber before it cools to blue. */
+  --ember: #ff9c2e;
+  --hot: #ffe3ac;
+  --glow: 0 0 12px rgba(30, 167, 255, 0.55);
+  --label: "DIN Condensed", "DIN Alternate", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --body: "Avenir Next", "Helvetica Neue", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr) 92px;
+  color: var(--text);
+  font: 14px/1.5 var(--body);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  background: var(--void);
+}
+
+/* The faint grid and central glow sit on their own layer behind everything. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(30, 167, 255, 0.035) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, rgba(30, 167, 255, 0.035) 0 1px, transparent 1px 44px),
+    radial-gradient(ellipse 70% 60% at 50% 46%, var(--deep) 0%, var(--void) 72%);
+}
+
+h1,
+h2,
+p,
+blockquote,
+pre,
+ul,
+ol,
+dl,
+dd {
+  margin: 0;
+  padding: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 1px solid var(--bright);
+  outline-offset: 3px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--edge);
+}

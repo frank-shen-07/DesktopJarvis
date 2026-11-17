@@ -1,0 +1,98 @@
+/* The Talk tab's layout and its left-hand status column. */
+
+#view-talk {
+  display: grid;
+  grid-template-columns: 236px minmax(260px, 1fr) minmax(300px, 360px);
+  gap: 18px;
+  padding: 18px 20px 6px;
+}
+
+.column {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 0;
+}
+
+.column-log {
+  align-content: stretch;
+}
+
+.readout {
+  font: 300 46px/1 var(--mono);
+  letter-spacing: -0.02em;
+  color: var(--bright);
+  text-shadow: var(--glow);
+  font-variant-numeric: tabular-nums;
+}
+
+.readout-sub {
+  margin-top: 6px;
+  font: 14px/1.2 var(--label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.link-list {
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+
+.link-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.link-list li::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  flex: none;
+}
+
+.link-list li[data-status="connected"] {
+  color: var(--bright);
+}
+.link-list li[data-status="connected"]::before {
+  background: var(--blue);
+  border-color: var(--blue);
+  box-shadow: var(--glow);
+}
+.link-list li[data-status="blocked"]::before {
+  background: var(--bad);
+  border-color: var(--bad);
+}
+
+.link-state {
+  margin-left: auto;
+  font: 10px/1 var(--mono);
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+.facts dt {
+  font: 13px/1.5 var(--label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.facts dd {
+  color: var(--bright);
+  text-align: right;
+  font: 12px/1.6 var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,186 @@
+/* The conversation log: what was heard and said, tool steps, approval prompts, the typing box. */
+
+.log {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.transcript {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-right: 6px;
+  user-select: text;
+}
+
+.empty {
+  margin: auto 0;
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-lead {
+  font: 700 22px/1.1 var(--label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bright);
+}
+
+.setup-note {
+  color: var(--text);
+}
+
+.turn {
+  display: grid;
+  gap: 8px;
+}
+
+.heard,
+.reply {
+  display: grid;
+  gap: 3px;
+}
+
+.heard::before,
+.reply::before {
+  font: 700 11px/1 var(--label);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+/* Words DesktopJarvis has written but not said yet: kept in place, and shown as the voice reaches
+   them. A paragraph shows once any of its words have been said. */
+.piece[data-unsaid] {
+  display: none;
+}
+.reply:not(:has(.piece:not([data-unsaid]))),
+.note:not(:has(.piece:not([data-unsaid]))) {
+  display: none;
+}
+
+/* What DesktopJarvis says while it is still working. */
+.note {
+  color: var(--text);
+  font-size: 13px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 156, 46, 0.55);
+}
+
+.heard {
+  color: #f2fbff;
+  font-size: 14px;
+}
+.heard::before {
+  content: "You";
+  color: var(--muted);
+}
+
+.reply {
+  color: var(--bright);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.reply::before {
+  content: "DesktopJarvis";
+  color: var(--blue);
+}
+
+.steps {
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  font: 11px/1.5 var(--mono);
+  color: var(--muted);
+}
+
+.step {
+  display: flex;
+  gap: 8px;
+}
+.step::before {
+  content: "›";
+  color: var(--blue);
+}
+.step[data-state="running"] {
+  color: var(--text);
+}
+.step[data-state="running"]::before {
+  animation: blink 0.9s steps(2) infinite;
+}
+.step[data-state="done"]::before {
+  content: "✓";
+  color: var(--good);
+}
+.step[data-state="failed"]::before {
+  content: "✕";
+  color: var(--bad);
+}
+
+.turn-error {
+  color: var(--bad);
+  font-size: 13px;
+}
+.turn-notice {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--blue);
+  background: rgba(30, 167, 255, 0.08);
+  box-shadow: var(--glow);
+  display: grid;
+  gap: 8px;
+}
+
+.confirm[hidden] {
+  display: none;
+}
+
+.confirm-title {
+  color: var(--bright);
+  font-weight: 600;
+}
+
+.confirm-detail {
+  max-height: 140px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 12px/1.5 var(--mono);
+  color: var(--text);
+  user-select: text;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.type-row {
+  margin-top: 12px;
+}
+
+.type-row input {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step[data-state="running"]::before {
+    animation: none;
+  }
+}

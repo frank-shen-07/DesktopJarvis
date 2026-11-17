@@ -110,3 +110,5 @@ this Mac or a private network. Hermes Agent works the same way at
 - `native/theo-events.swift` Calendar and Reminders bridge
 - `renderer/` the interface (`dragon.js` is the hologram dragon behind the core,
   `forge.js` the fire that draws the cards)
+- `renderer/styles/` one stylesheet per part of the window: `base.css` holds the shared
+  colours and fonts, and `dock.css`, `board.css`, `voice.css` and the rest each style one area

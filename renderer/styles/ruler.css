@@ -1,0 +1,66 @@
+/* The ruler across the top: the days of this month, today lit. */
+
+.ruler {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  padding: 0 18px 0 86px;
+  border-bottom: 1px solid var(--edge);
+  -webkit-app-region: drag;
+}
+
+.wordmark,
+.ruler-month {
+  align-self: center;
+  font: 700 19px/1 var(--label);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--blue);
+  text-shadow: var(--glow);
+  translate: 0 2px;
+}
+
+.ruler-month {
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-shadow: none;
+}
+
+.ruler-days {
+  flex: 1;
+  display: flex;
+  list-style: none;
+  min-width: 0;
+}
+
+.ruler-days li {
+  flex: 1;
+  display: grid;
+  align-content: end;
+  justify-items: center;
+  font: 10px/1 var(--mono);
+  color: var(--muted);
+  padding-bottom: 5px;
+  position: relative;
+}
+
+.ruler-days li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 7px;
+  background: var(--edge);
+}
+
+.ruler-days li[data-today] {
+  color: var(--bright);
+  text-shadow: var(--glow);
+}
+.ruler-days li[data-today]::after {
+  height: 13px;
+  width: 2px;
+  background: var(--blue);
+  box-shadow: var(--glow);
+}
