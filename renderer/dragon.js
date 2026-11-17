@@ -5,7 +5,9 @@
  * surfaces. A 3D model of the head is scattered with thousands of glowing points, banded
  * with broken arcs, crossed by thin rays and circled by slow rings, with out-of-focus discs
  * of light drifting through it. Fire rolls off the back of the skull. The head turns to
- * follow the pointer, blinks, and moves its jaw with Theo's voice.
+ * follow the pointer, blinks, and moves its jaw with Theo's voice. When cards are being
+ * drawn on the board it looks down at them with its mouth wide open (the jet of fire
+ * itself is drawn by forge.js).
  *
  * Model space: x to the viewer's right, y down, z towards the viewer. One unit is roughly
  * the width of the skull; the whole head is scaled to the core's ring when drawn.
@@ -354,7 +356,7 @@
   });
 
   function updatePose(state) {
-    const { time, elapsed, phase, loudness, voiced, still } = state;
+    const { time, elapsed, phase, loudness, voiced, still, forge } = state;
     if (still) {
       // Reduced motion: no turning, swaying or flapping; the head holds one calm pose.
       Object.assign(pose, { yaw: 0, pitch: REST_PITCH, roll: 0, jaw: 0.1, lean: 1, eye: 1, heat: 0.5, breath: phase === "speaking" ? 0.4 : 0 });
@@ -397,6 +399,18 @@
       lean = 1.03;
       breath = 0.25 + level * 0.75;
       heat = 0.75 + level * 0.5;
+    }
+
+    if (forge) {
+      // Drawing a card: head down and turned to where the fire lands, jaws wide, burning hot.
+      yaw = clamp(forge.x / (state.R * 2.4), -1, 1) * 0.62;
+      pitch = REST_PITCH - 0.34;
+      roll = -yaw * 0.14;
+      jaw = 0.5 + 0.05 * Math.sin(time / 90);
+      lean = 1.05;
+      eye = 0.85;
+      breath = 1;
+      heat = 1.35;
     }
 
     pose.yaw += (yaw - pose.yaw) * ease(260);
@@ -1130,7 +1144,9 @@
 
   /**
    * Draw one frame, centred on the current origin of `pen`.
-   * state: { R, time, elapsed, still, phase, loudness, voiced }
+   * state: { R, time, elapsed, still, phase, loudness, voiced, forge }
+   * `forge` is where fire is landing on the board, relative to the origin, or null.
+   * Afterwards `api.mouth` holds where the mouth was drawn, relative to the same origin.
    */
   function draw(pen, state) {
     if (!centre) {
@@ -1154,6 +1170,8 @@
     sinRoll = Math.sin(pose.roll);
     cosJaw = Math.cos(pose.jaw);
     sinJaw = Math.sin(pose.jaw);
+    place(0, 0.52 + pose.jaw * 0.2, 0.5, false);
+    api.mouth = { x: outX, y: outY };
 
     // With reduced motion the fire is lit once and then held still.
     if (!state.still || warmed < 70) {
@@ -1213,6 +1231,14 @@
   const bloom = document.createElement("canvas");
   const bloomInk = bloom.getContext("2d");
 
-  const api = { draw, hold: null };
+  const api = {
+    draw,
+    hold: null,
+    mouth: null,
+    /** The canvas has moved or changed size, so the pointer must be measured afresh. */
+    moved() {
+      centre = null;
+    },
+  };
   window.theoDragon = api;
 })();

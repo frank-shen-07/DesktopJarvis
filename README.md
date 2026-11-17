@@ -6,9 +6,35 @@ Reminders, read and send Gmail and Outlook mail, and browse the web.
 
 ## Screenshots
 
-![Talk tab](docs/screenshots/talk.png)
+“What’s on my calendar tomorrow?” Theo answers out loud and the dragon draws the day as cards:
 
-![Connections tab](docs/screenshots/connections.png)
+![Theo showing tomorrow's calendar as cards](docs/screenshots/calendar.png)
+
+“Anything I need to deal with today?” Unread mail and open reminders, with one ticked off:
+
+![Theo showing unread mail and reminders as cards](docs/screenshots/inbox.png)
+
+The screenshots use made-up sample data.
+
+## How a turn goes
+
+Theo answers in pieces instead of all at once:
+
+- The moment a request is heard it says a short "On it" or "Let me check". The audio
+  for these is made once per voice and kept, so it plays without a wait.
+- While it works it says what it is doing: Claude's own notes between steps, or the
+  name of the step ("Checking your calendar") when it has been quiet for a couple of
+  seconds.
+- The answer is spoken sentence by sentence as Claude writes it, so the first words
+  are heard while the rest is still being written.
+
+Turn the first two off in Settings › Talking if you want it quieter. Each turn prints
+its timings to the console (`[theo] turn: …`) when started with `npm run dev`.
+
+Calendar events, reminders and email are also put on screen as cards, which the dragon
+draws under itself. Tick a reminder to complete it, click an email to have it read
+out, and press Escape or Close to put the cards away. Theo can put up its own lists
+the same way, for example a plan for the day.
 
 ## Run it
 
@@ -68,6 +94,9 @@ this Mac or a private network. Hermes Agent works the same way at
 - `src/tools.ts` everything Theo can do on the Mac
 - `src/oauth.ts`, `src/mail.ts` Gmail and Outlook sign-in and mail
 - `src/speech.ts` transcription, speech, voice cloning
+- `src/phrases.ts` the quick acknowledgements, and sentences out of a stream
+- `src/board.ts` the cards shown for calendar, reminders, mail and lists
 - `src/localVoice.ts`, `voice/server.py` the free voice that runs on this Mac
 - `native/theo-events.swift` Calendar and Reminders bridge
-- `renderer/` the interface (`dragon.js` is the hologram dragon behind the core)
+- `renderer/` the interface (`dragon.js` is the hologram dragon behind the core,
+  `forge.js` the fire that draws the cards)

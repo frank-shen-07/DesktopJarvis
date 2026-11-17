@@ -1,6 +1,15 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import {
+  addedEventSection,
+  BoardSection,
+  calendarSection,
+  listSection,
+  mailSection,
+  messageSection,
+  remindersSection,
+} from "./board";
 import { appleScript, eventKit, fromEpoch, run, toEpoch } from "./mac";
 import { draftMail, htmlToText, listMail, readMail, sendMail } from "./mail";
 import { isConnected, MailProvider } from "./oauth";
@@ -9,6 +18,8 @@ import { getSettings } from "./store";
 export interface ToolContext {
   /** Ask the person to approve an action. Resolves false if they decline. */
   confirm(request: { title: string; detail: string; action: string }): Promise<boolean>;
+  /** Put a set of cards on screen beside what Theo says. */
+  show(section: BoardSection): void;
 }
 
 type Input = Record<string, unknown>;
@@ -194,11 +205,11 @@ export const tools: TheoTool[] = [
       required: ["start", "end"],
     },
     label: () => "Checking your calendar",
-    async run(input) {
-      const events = await eventKit<Record<string, unknown>[]>("events", {
-        start: toEpoch(input.start, "start"),
-        end: toEpoch(input.end, "end"),
-      });
+    async run(input, context) {
+      const start = toEpoch(input.start, "start");
+      const end = toEpoch(input.end, "end");
+      const events = await eventKit<Record<string, unknown>[]>("events", { start, end });
+      context.show(calendarSection(events, start, end));
       return events.map((event) => ({
         title: event.title,
         start: fromEpoch(event.start, event.allDay === true),
@@ -226,16 +237,20 @@ export const tools: TheoTool[] = [
       required: ["title", "start"],
     },
     label: (input) => `Adding “${text(input, "title", false)}” to your calendar`,
-    async run(input) {
-      return eventKit("add-event", {
+    async run(input, context) {
+      const start = toEpoch(input.start, "start");
+      const event = {
         title: text(input, "title"),
-        start: toEpoch(input.start, "start"),
+        start,
         end: input.end ? toEpoch(input.end, "end") : undefined,
         allDay: input.all_day === true,
         calendar: text(input, "calendar", false) || undefined,
         location: text(input, "location", false) || undefined,
         notes: text(input, "notes", false) || undefined,
-      });
+      };
+      const added = await eventKit<{ calendar?: string }>("add-event", event);
+      context.show(addedEventSection({ ...event, end: event.end ?? start + 3600, calendar: added.calendar ?? event.calendar }));
+      return added;
     },
   },
   {
@@ -252,13 +267,16 @@ export const tools: TheoTool[] = [
       required: ["title"],
     },
     label: () => "Setting a reminder",
-    async run(input) {
-      return eventKit("add-reminder", {
+    async run(input, context) {
+      const reminder = {
         title: text(input, "title"),
         due: input.due ? toEpoch(input.due, "due") : undefined,
         notes: text(input, "notes", false) || undefined,
         list: text(input, "list", false) || undefined,
-      });
+      };
+      const added = await eventKit<{ id?: string; list?: string }>("add-reminder", reminder);
+      context.show(remindersSection([{ ...reminder, id: added.id, list: added.list ?? reminder.list }], "Reminder set"));
+      return added;
     },
   },
   {
@@ -269,10 +287,11 @@ export const tools: TheoTool[] = [
       properties: { due_before: dateTime("Only reminders due before this time; omit for all open reminders") },
     },
     label: () => "Checking your reminders",
-    async run(input) {
+    async run(input, context) {
       const reminders = await eventKit<Record<string, unknown>[]>("reminders", {
         dueBefore: input.due_before ? toEpoch(input.due_before, "due_before") : undefined,
       });
+      context.show(remindersSection(reminders));
       return reminders.map((reminder) => ({
         id: reminder.id,
         title: reminder.title,
@@ -305,12 +324,14 @@ export const tools: TheoTool[] = [
       },
     },
     label: () => "Checking your email",
-    async run(input) {
-      const messages = await listMail(mailAccount(input), {
+    async run(input, context) {
+      const options = {
         unreadOnly: input.unread_only === true,
         query: text(input, "query", false),
         limit: typeof input.limit === "number" ? input.limit : 8,
-      });
+      };
+      const messages = await listMail(mailAccount(input), options);
+      context.show(mailSection(messages, options));
       return messages.map((message) => ({
         ...message,
         received: fromEpoch(new Date(message.received).getTime() / 1000),
@@ -329,7 +350,11 @@ export const tools: TheoTool[] = [
       required: ["id"],
     },
     label: () => "Reading the email",
-    run: (input) => readMail(mailAccount(input), text(input, "id")),
+    async run(input, context) {
+      const mail = await readMail(mailAccount(input), text(input, "id"));
+      context.show(messageSection(mail));
+      return mail;
+    },
   },
   {
     name: "draft_email",
@@ -386,6 +411,41 @@ export const tools: TheoTool[] = [
       if (!approved) return { sent: false, reason: "The person chose not to send it" };
       await sendMail(account, mail);
       return { sent: true };
+    },
+  },
+  {
+    name: "show_cards",
+    description:
+      "Put a set of cards on the person's screen, for when what you have to tell them is a list they would rather look at than listen to: a plan for the day, things to do, options to choose between. Use it for three or more items, and say only the headline out loud. Calendar events, reminders and emails already appear on screen by themselves when you read them, so do not repeat those here.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "A few words naming the list, such as Today or Before the trip" },
+        checklist: { type: "boolean", description: "True when the items are things to do, so each gets a tick box" },
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "The item, in a few words" },
+              detail: { type: "string", description: "Optional single line of detail" },
+              when: { type: "string", description: "Optional time or date, written the way it should be read, such as 09:30 or Friday" },
+            },
+            required: ["title"],
+          },
+        },
+      },
+      required: ["title", "items"],
+    },
+    label: () => "Putting it on screen",
+    async run(input, context) {
+      const items = (Array.isArray(input.items) ? input.items : [])
+        .filter((item): item is Input => Boolean(item) && typeof item === "object")
+        .map((item) => ({ title: text(item, "title", false), detail: text(item, "detail", false), when: text(item, "when", false) }))
+        .filter((item) => item.title);
+      if (!items.length) throw new Error("items must contain at least one item with a title");
+      context.show(listSection({ title: text(input, "title"), checklist: input.checklist === true, items }));
+      return { shown: items.length };
     },
   },
   {

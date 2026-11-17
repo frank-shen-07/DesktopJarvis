@@ -81,6 +81,7 @@ function drawCore(time) {
   }
   if (!width || !height) {
     // The Talk view is hidden; nothing to draw.
+    theoForge.render(time, null);
     requestAnimationFrame(drawCore);
     return;
   }
@@ -88,7 +89,13 @@ function drawCore(time) {
   if (Math.abs(coreSize - R) > 0.5) {
     coreSize = R;
     canvas.parentElement.style.setProperty("--core", `${Math.round(R * 0.74)}px`);
+    theoDragon.moved();
   }
+  // While cards are being drawn, the dragon looks at where its fire is landing.
+  const box = canvas.getBoundingClientRect();
+  const centreX = box.left + width / 2;
+  const centreY = box.top + height / 2;
+  const landing = reducedMotion.matches ? null : theoForge.aim();
 
   const elapsed = Math.min(64, time - lastFrame);
   lastFrame = time;
@@ -117,6 +124,7 @@ function drawCore(time) {
     phase,
     loudness,
     voiced: Boolean(analyser),
+    forge: landing && { x: landing.x - centreX, y: landing.y - centreY },
   });
   pen.lineCap = "butt";
 
@@ -145,6 +153,7 @@ function drawCore(time) {
   }
 
   pen.restore();
+  theoForge.render(time, theoDragon.mouth && { x: centreX + theoDragon.mouth.x, y: centreY + theoDragon.mouth.y });
   requestAnimationFrame(drawCore);
 }
 
@@ -157,15 +166,25 @@ const IDLE_HINT = "Hold space, or click the core to talk";
 const coreState = $("#core-state");
 
 let phase = "idle"; // idle | listening | working | speaking
-let currentTurn = null; // { id, node, steps, failed }
+let currentTurn = null; // { id, node }
 let pendingTurnNode = null;
+// What is waiting to be said, in speaking order: { url } for audio, { text } for the Mac's
+// own voice, { silent } for words with nothing to say aloud. `piece` names the words in
+// the log that each one shows when it starts.
 let playQueue = [];
 let playing = false;
+// The step Theo is on, shown whenever it is not speaking.
+let workLabel = "Thinking";
+// Words in the log that have been written but not yet said.
+let unsaid = 0;
 let turnFinished = true;
 let usingSystemVoice = false;
 let lastTurnOk = false;
+// Until this moment the wake word listener ignores the room (see onWakeAudio).
+let wakeDeafUntil = 0;
 
 function setPhase(next, label) {
+  if (next === "idle" && phase !== "idle") wakeDeafUntil = performance.now() + WAKE_REST_MS;
   phase = next;
   talkButton.dataset.phase = next;
   talkButton.setAttribute(
@@ -176,6 +195,11 @@ function setPhase(next, label) {
   if (next === "idle" && !label && wakeActive()) label = `Say “${state.settings.wakeWord}”, or click the core`;
   phaseLabel.textContent =
     label ?? { idle: IDLE_HINT, listening: "Listening", working: "Thinking", speaking: "Click the core to stop" }[next];
+}
+
+/** Between things to say: show the step Theo is on, or that its next words are on their way. */
+function showWorking() {
+  setPhase("working", unsaid ? "Getting ready to speak" : workLabel);
 }
 
 function newTurnNode() {
@@ -190,37 +214,82 @@ function scrollDown() {
   transcript.scrollTop = transcript.scrollHeight;
 }
 
+/** Show words in the log now that Theo is saying them. */
+function reveal(piece) {
+  const node = piece && transcript.querySelector(`[data-piece="${CSS.escape(piece)}"]`);
+  if (!node || !("unsaid" in node.dataset)) return;
+  delete node.dataset.unsaid;
+  unsaid = Math.max(0, unsaid - 1);
+  scrollDown();
+}
+
+/** Show every word still waiting, for when Theo will not be saying them after all. */
+function revealAll() {
+  for (const node of transcript.querySelectorAll(".piece[data-unsaid]")) delete node.dataset.unsaid;
+  unsaid = 0;
+}
+
 function stopSpeaking() {
-  playQueue.forEach((url) => URL.revokeObjectURL(url));
+  for (const item of playQueue) if (item.url) URL.revokeObjectURL(item.url);
   playQueue = [];
   playing = false;
   player.pause();
   speechSynthesis.cancel();
   usingSystemVoice = false;
+  revealAll();
 }
 
 function settleIfDone() {
   if (!turnFinished || playing || playQueue.length || speechSynthesis.speaking) return;
   if (phase === "listening") return;
+  // Anything never said, because the turn failed part way, is still worth reading.
+  revealAll();
   usingSystemVoice = false;
   setPhase("idle");
   if (state?.settings.keepListening && lastTurnOk) startListening({ auto: true });
 }
 
+/** Say the next thing in the queue. Theo speaks in pieces, some while it is still working. */
 function playNext() {
   if (playing) return;
-  const url = playQueue.shift();
-  if (!url) {
+  const item = playQueue.shift();
+  if (!item) {
+    // Nothing more to say for now; if the turn is still running, it is back to work.
+    if (!turnFinished && phase === "speaking") showWorking();
     settleIfDone();
+    return;
+  }
+  if (item.silent) {
+    reveal(item.piece);
+    playNext();
     return;
   }
   playing = true;
   setPhase("speaking");
-  player.src = url;
-  player.play().catch(() => {
+  const next = () => {
     playing = false;
     playNext();
-  });
+  };
+  if (!item.url) {
+    usingSystemVoice = true;
+    const utterance = new SpeechSynthesisUtterance(item.text);
+    utterance.onstart = () => reveal(item.piece);
+    utterance.onend = utterance.onerror = () => {
+      reveal(item.piece);
+      next();
+    };
+    speechSynthesis.speak(utterance);
+    return;
+  }
+  usingSystemVoice = false;
+  player.src = item.url;
+  player.play().then(
+    () => reveal(item.piece),
+    () => {
+      reveal(item.piece);
+      next();
+    },
+  );
 }
 
 player.addEventListener("ended", () => {
@@ -229,51 +298,87 @@ player.addEventListener("ended", () => {
   playNext();
 });
 
+/** The list of steps at the end of a turn's entry, started afresh after anything Theo says. */
+function stepList(turn) {
+  const last = turn.node.lastElementChild;
+  return last?.matches("ul.steps") ? last : turn.node.appendChild(el("ul", { className: "steps" }));
+}
+
+/** Where the next words of this kind go: the paragraph at the end of the entry, or a new one. */
+function wordsFor(turn, kind) {
+  const last = turn.node.lastElementChild;
+  if (last?.matches(`p.${kind}`)) return $(".words", last);
+  const words = el("span", { className: "words" });
+  turn.node.append(el("p", { className: kind }, words));
+  return words;
+}
+
 theo.on("turn", (event) => {
   if (!currentTurn || currentTurn.id !== event.turnId) {
-    currentTurn = { id: event.turnId, node: pendingTurnNode ?? newTurnNode(), steps: null };
+    currentTurn = { id: event.turnId, node: pendingTurnNode ?? newTurnNode() };
     pendingTurnNode = null;
     turnFinished = false;
     lastTurnOk = false;
+    workLabel = "Thinking";
   }
   const turn = currentTurn;
+  // Words and their audio share an id, unique to the turn.
+  const piece = event.id && `${event.turnId}:${event.id}`;
 
   switch (event.type) {
     case "status":
-      setPhase("working", event.status === "transcribing" ? "Working out what you said" : "Thinking");
+      workLabel = event.status === "transcribing" ? "Working out what you said" : "Thinking";
+      setPhase("working", workLabel);
       break;
     case "heard":
       if (!$(".heard", turn.node)) turn.node.append(el("p", { className: "heard", textContent: event.text }));
       break;
     case "tool": {
-      turn.steps ??= turn.node.appendChild(el("ul", { className: "steps" }));
-      let step = turn.steps.querySelector(`[data-id="${CSS.escape(event.id)}"]`);
+      let step = turn.node.querySelector(`.step[data-id="${CSS.escape(event.id)}"]`);
       if (!step) {
+        // Whatever Theo said before taking a step was a note on its work, not the answer.
+        const last = turn.node.lastElementChild;
+        if (last?.matches("p.reply")) last.className = "note";
         step = el("li", { className: "step", textContent: event.label });
         step.dataset.id = event.id;
-        turn.steps.append(step);
+        stepList(turn).append(step);
       }
       step.dataset.state = event.state;
-      if (event.state === "running") setPhase("working", event.label);
+      if (event.state === "running") {
+        workLabel = event.label;
+        if (phase !== "speaking") setPhase("working", workLabel);
+      }
       break;
     }
-    case "reply":
-      turn.node.append(el("p", { className: "reply", textContent: event.text }));
-      lastTurnOk = true;
+    case "say": {
+      // Words arrive as soon as they are written, but stay hidden until the voice reaches
+      // them, so the log and the voice keep pace.
+      const words = wordsFor(turn, event.kind === "note" ? "note" : "reply");
+      const node = el("span", { className: "piece", textContent: event.text });
+      node.dataset.piece = piece;
+      node.dataset.unsaid = "";
+      if (words.childElementCount) words.append(" ");
+      words.append(node);
+      unsaid += 1;
+      if (phase === "working") showWorking();
+      break;
+    }
+    case "silent":
+      playQueue.push({ silent: true, piece });
+      playNext();
+      break;
+    case "board":
+      showBoard(event.section, turn.id);
       break;
     case "audio":
       ensureAudio();
-      playQueue.push(speechUrl(event.audio));
+      playQueue.push({ url: speechUrl(event.audio), piece });
       playNext();
       break;
-    case "system-voice": {
-      usingSystemVoice = true;
-      setPhase("speaking");
-      const utterance = new SpeechSynthesisUtterance(event.text);
-      utterance.onend = utterance.onerror = () => settleIfDone();
-      speechSynthesis.speak(utterance);
+    case "system-voice":
+      playQueue.push({ text: event.text, piece });
+      playNext();
       break;
-    }
     case "notice":
       turn.node.append(el("p", { className: "turn-notice", textContent: event.message }));
       break;
@@ -282,9 +387,11 @@ theo.on("turn", (event) => {
       break;
     case "done":
       turnFinished = true;
+      lastTurnOk = event.ok === true;
       if (event.empty) {
         turn.node.append(el("p", { className: "turn-notice", textContent: "Theo didn’t catch anything. Try again a little closer to the microphone." }));
       }
+      for (const step of turn.node.querySelectorAll('.step[data-state="running"]')) step.dataset.state = "done";
       if (!turn.node.childElementCount) turn.node.remove();
       hideConfirm();
       settleIfDone();
@@ -293,7 +400,116 @@ theo.on("turn", (event) => {
   scrollDown();
 });
 
+// ---------------------------------------------------------------- Board
+
+// Cards the dragon draws under itself: what is on the calendar, in the inbox, left to do.
+// A board stays up until it is closed or a later request brings a new one.
+const coreWrap = $("#core-wrap");
+const board = $("#board");
+const boardBody = $("#board-body");
+let boardTurn = null;
+let boardClearing = 0;
+
+function sendText(text) {
+  stopSpeaking();
+  stopListening(false);
+  pendingTurnNode = newTurnNode();
+  setPhase("working", "Thinking");
+  theo.invoke("talk:text", text);
+}
+
+function cardNode(card, kind) {
+  const node = el(card.ask ? "button" : "article", { className: "card" });
+  node.dataset.kind = kind;
+  if (card.state) node.dataset.state = card.state;
+  if (card.kicker || card.tag) {
+    node.append(
+      el("div", { className: "card-top" }, [
+        el("span", { className: "card-kicker", textContent: card.kicker ?? "" }),
+        ...(card.tag ? [el("span", { className: "card-tag", textContent: card.tag })] : []),
+      ]),
+    );
+  }
+  node.append(el("div", { className: "card-title", textContent: card.title }));
+  if (card.detail) node.append(el("div", { className: "card-detail", textContent: card.detail }));
+  if (card.body) node.append(el("div", { className: "card-body", textContent: card.body }));
+
+  if (card.check) {
+    node.dataset.check = "";
+    const box = el("button", { className: "card-check" });
+    box.setAttribute("aria-label", `Mark “${card.title}” as done`);
+    box.setAttribute("aria-pressed", "false");
+    box.addEventListener("click", async () => {
+      const done = !("done" in node.dataset);
+      if (done) node.dataset.done = "";
+      else delete node.dataset.done;
+      box.setAttribute("aria-pressed", String(done));
+      if (!card.check.reminderId) return;
+      // A real reminder: tick it off in the Reminders app too. That cannot be undone from here.
+      box.disabled = true;
+      try {
+        await theo.invoke("reminder:complete", card.check.reminderId);
+      } catch (error) {
+        delete node.dataset.done;
+        box.disabled = false;
+        box.setAttribute("aria-pressed", "false");
+        $(".card-kicker", node).textContent = cleanError(error);
+      }
+    });
+    node.prepend(box);
+  }
+  if (card.ask) {
+    node.title = "Click to have Theo read this out";
+    node.addEventListener("click", () => sendText(card.ask));
+  }
+  return node;
+}
+
+function showBoard(section, turnId) {
+  const open = coreWrap.dataset.board === "open";
+  // The first thing a request shows replaces the board; anything more it shows is added.
+  if (boardTurn !== turnId || !open) {
+    theoForge.clear();
+    boardBody.replaceChildren();
+  }
+  clearTimeout(boardClearing);
+  boardTurn = turnId;
+
+  const cards = section.cards.map((card) => cardNode(card, section.kind));
+  const head = el("header", { className: "board-head" }, [
+    el("h2", { className: "board-title", textContent: section.title }),
+    ...(section.note ? [el("span", { className: "board-note", textContent: section.note })] : []),
+  ]);
+  boardBody.append(
+    el("section", { className: "board-section" }, [
+      head,
+      cards.length
+        ? el("div", { className: "board-cards" }, cards)
+        : el("p", { className: "board-empty", textContent: section.empty ?? "Nothing to show" }),
+    ]),
+  );
+  coreWrap.dataset.board = "open";
+  board.inert = false;
+  // Wait for the dragon to move up out of the way before it starts drawing.
+  theoForge.start(cards, { delay: open ? 80 : 560 });
+}
+
+function closeBoard() {
+  if (coreWrap.dataset.board !== "open") return;
+  delete coreWrap.dataset.board;
+  board.inert = true;
+  boardTurn = null;
+  theoForge.clear();
+  boardClearing = setTimeout(() => boardBody.replaceChildren(), 600);
+}
+
+$("#board-close").addEventListener("click", closeBoard);
+
 // ---------------------------------------------------------------- Listening
+
+// How long a pause counts as the end of a request. Shorter answers sooner, but cuts in
+// on people who stop to think mid-sentence.
+const END_OF_REQUEST_MS = 2000;
 
 let recorder = null;
 let micStream = null;
@@ -317,6 +533,8 @@ async function startListening({ auto }) {
   if (phase !== "idle") await theo.invoke("talk:cancel");
   ensureAudio();
   await audioContext.resume();
+  // Reach the transcription service now, so it is already connected when the words are sent.
+  theo.invoke("talk:warm").catch(() => undefined);
 
   try {
     micStream = await navigator.mediaDevices.getUserMedia({
@@ -377,7 +595,7 @@ async function startListening({ auto }) {
       quietSince = 0;
     } else if (spokeAt) {
       quietSince ||= now;
-      if (now - quietSince > 1300) stopListening(true);
+      if (now - quietSince > END_OF_REQUEST_MS) stopListening(true);
     } else if (now - startedAt > 7000) {
       stopListening(false);
     }
@@ -439,7 +657,9 @@ addEventListener("keyup", (event) => {
 });
 
 addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && phase !== "idle") cancelEverything();
+  if (event.key !== "Escape") return;
+  if (phase !== "idle") cancelEverything();
+  else closeBoard();
 });
 
 $("#type-form").addEventListener("submit", (event) => {
@@ -448,11 +668,7 @@ $("#type-form").addEventListener("submit", (event) => {
   const text = input.value.trim();
   if (!text) return;
   input.value = "";
-  stopSpeaking();
-  stopListening(false);
-  pendingTurnNode = newTurnNode();
-  setPhase("working");
-  theo.invoke("talk:text", text);
+  sendText(text);
 });
 
 // ---------------------------------------------------------------- Wake word
@@ -463,10 +679,11 @@ $("#type-form").addEventListener("submit", (event) => {
 let wakeStream = null;
 let wakeNode = null;
 let wakeSource = null;
-let wakeLead = [];
-let wakeSpeech = null;
-let wakeQuiet = 0;
-let wakeVoiced = 0;
+// After Theo has spoken or listened, the room is ignored for this long: what the
+// microphone picks up then is the tail of Theo's own voice or of the conversation.
+const WAKE_REST_MS = 1200;
+// Overheard sound, cut into stretches of speech that end at the same pause as a request.
+const overheard = theoHearing.createSegmenter({ pauseMs: END_OF_REQUEST_MS });
 
 function wakeActive() {
   return Boolean(state?.settings.wakeEnabled && state.keys.groq && state.settings.wakeWord.trim());
@@ -510,41 +727,13 @@ async function checkWakeSpeech(chunks) {
 }
 
 function onWakeAudio(event) {
-  if (phase !== "idle") {
-    // Theo is busy or speaking; ignore the room until it is idle again.
-    wakeSpeech = null;
-    wakeLead = [];
+  if (phase !== "idle" || performance.now() < wakeDeafUntil) {
+    // Theo is busy, or has only just finished; ignore the room until it is idle again.
+    overheard.clear();
     return;
   }
-  const frame = new Float32Array(event.inputBuffer.getChannelData(0));
-  let sum = 0;
-  for (const value of frame) sum += value * value;
-  const loud = Math.sqrt(sum / frame.length) > 0.02;
-  const frameMs = (frame.length / audioContext.sampleRate) * 1000;
-
-  if (!wakeSpeech) {
-    wakeLead.push(frame);
-    if (wakeLead.length > 6) wakeLead.shift();
-    if (!loud) return;
-    wakeSpeech = wakeLead;
-    wakeLead = [];
-    wakeQuiet = 0;
-    wakeVoiced = frameMs;
-    return;
-  }
-  wakeSpeech.push(frame);
-  if (loud) {
-    wakeVoiced += frameMs;
-    wakeQuiet = 0;
-  } else {
-    wakeQuiet += frameMs;
-  }
-  const lengthMs = wakeSpeech.length * frameMs;
-  if (wakeQuiet < 900 && lengthMs < 15000) return;
-  const finished = wakeSpeech;
-  wakeSpeech = null;
-  // Clicks and bumps are too short to be a wake word.
-  if (wakeVoiced >= 250) checkWakeSpeech(finished).catch(() => undefined);
+  const heard = overheard.push(event.inputBuffer.getChannelData(0), audioContext.sampleRate);
+  if (heard) checkWakeSpeech(heard).catch(() => undefined);
 }
 
 async function syncWakeListener() {
@@ -572,8 +761,8 @@ async function syncWakeListener() {
     wakeSource.disconnect();
     wakeNode.disconnect();
     wakeStream.getTracks().forEach((track) => track.stop());
-    wakeStream = wakeNode = wakeSource = wakeSpeech = null;
-    wakeLead = [];
+    wakeStream = wakeNode = wakeSource = null;
+    overheard.clear();
   }
 }
 
@@ -992,6 +1181,8 @@ $("#wake-enabled").addEventListener("change", async (event) =>
   applyState(await theo.invoke("settings:update", { wakeEnabled: event.target.checked })));
 $("#keep-listening").addEventListener("change", async (event) =>
   applyState(await theo.invoke("settings:update", { keepListening: event.target.checked })));
+$("#quick-replies").addEventListener("change", async (event) =>
+  applyState(await theo.invoke("settings:update", { quickReplies: event.target.checked })));
 $("#confirm-scripts").addEventListener("change", async (event) =>
   applyState(await theo.invoke("settings:update", { confirmScripts: event.target.checked })));
 $("#model").addEventListener("change", async (event) =>
@@ -1020,6 +1211,7 @@ $("#reset-conversation").addEventListener("click", async () => {
   await cancelEverything();
   await theo.invoke("talk:reset");
   transcript.replaceChildren();
+  closeBoard();
 });
 
 // ---------------------------------------------------------------- State
@@ -1085,6 +1277,7 @@ function applyState(next) {
 
   if (document.activeElement !== $("#shortcut")) $("#shortcut").value = settings.shortcut;
   $("#keep-listening").checked = settings.keepListening;
+  $("#quick-replies").checked = settings.quickReplies;
   $("#wake-enabled").checked = settings.wakeEnabled;
   if (document.activeElement !== $("#wake-word")) $("#wake-word").value = settings.wakeWord;
   $("#hud-wake").textContent = !settings.wakeEnabled ? "Off" : keys.groq ? settings.wakeWord : "Needs Groq key";

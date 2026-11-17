@@ -7,6 +7,8 @@ const INVOKE = [
   "talk:audio",
   "talk:text",
   "talk:cancel",
+  "talk:warm",
+  "reminder:complete",
   "wake:audio",
   "talk:reset",
   "confirm:respond",

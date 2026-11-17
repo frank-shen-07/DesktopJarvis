@@ -24,6 +24,8 @@ export interface Settings {
   wakeEnabled: boolean;
   wakeWord: string;
   keepListening: boolean;
+  /** Say "On it" as soon as a request is heard, and say what Theo is doing while it works. */
+  quickReplies: boolean;
   confirmScripts: boolean;
   /** MiniMax voice id of the user's clone; empty until they create one. */
   voiceId: string;
@@ -62,6 +64,7 @@ const defaults: Settings = {
   wakeEnabled: false,
   wakeWord: "Jarvis",
   keepListening: false,
+  quickReplies: true,
   confirmScripts: true,
   voiceId: "",
   localVoice: false,

@@ -38,11 +38,19 @@
         </div>
       </aside>
 
-      <div class="core-wrap">
-        <canvas id="core" aria-hidden="true"></canvas>
-        <button class="core-button" id="talk-button" data-phase="idle" aria-label="Talk to Theo">
-          <span class="core-state" id="core-state">Standby</span>
-        </button>
+      <div class="core-wrap" id="core-wrap">
+        <div class="core-stage">
+          <canvas id="core" aria-hidden="true"></canvas>
+          <button class="core-button" id="talk-button" data-phase="idle" aria-label="Talk to Theo">
+            <span class="core-state" id="core-state">Standby</span>
+          </button>
+        </div>
+        <!-- The board: cards the dragon draws for calendar, mail, reminders and lists. -->
+        <section class="board" id="board" aria-label="On screen" inert>
+          <button class="board-close" id="board-close" aria-label="Close the cards">Close</button>
+          <div class="board-body" id="board-body"></div>
+        </section>
+        <canvas id="forge" aria-hidden="true"></canvas>
         <p class="phase" id="phase">Hold space, or click the core to talk</p>
       </div>
 
@@ -149,8 +157,9 @@
             <input id="wake-word" type="text" spellcheck="false">
             <button class="button" data-save="wakeWord" data-from="wake-word">Save wake word</button>
           </div>
-          <p class="hint" id="wake-hint">While this is on the microphone stays open, and anything said near your Mac is sent to Groq to check for the wake word. Speech without it is discarded.</p>
+          <p class="hint" id="wake-hint">Start with the wake word, on its own or after “hey”: “Hey Jarvis, what’s on today?”. Said anywhere else in a sentence it is ignored. While this is on the microphone stays open, and speech near your Mac is sent to Groq to check for the wake word; anything without it is discarded.</p>
         </div>
+        <label class="check"><input type="checkbox" id="quick-replies"> Answer straight away with a quick “On it”, and say what Theo is doing while it works</label>
         <label class="check"><input type="checkbox" id="keep-listening"> Keep listening after Theo answers, until I stop talking</label>
         <label class="check"><input type="checkbox" id="confirm-scripts"> Ask me before Theo runs a custom script on this Mac</label>
       </div>
@@ -252,6 +261,8 @@
   </nav>
 
   <script src="dragon.js"></script>
+  <script src="forge.js"></script>
+  <script src="hearing.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -26,7 +26,8 @@ import {
   warmLocalVoice,
 } from "./localVoice";
 import { connectGmail, connectOutlook, disconnect, isConnected } from "./oauth";
-import { afterWakeWord, cloneVoice, forSpeech, speechChunks, synthesize, transcribe } from "./speech";
+import { chooseAck, keptPhrase, preparePhrases, sentencesOf } from "./phrases";
+import { afterWakeWord, cloneVoice, forSpeech, synthesize, transcribe, transcribeOverheard } from "./speech";
 import {
   getSecret,
   getSettings,
@@ -211,59 +212,136 @@ function cancelActiveTurn(): void {
   pendingConfirms.clear();
 }
 
-async function speak(text: string, turnId: string, signal: AbortSignal): Promise<void> {
-  const minimaxKey = getSecret("minimax");
+// ---------- Speaking ----------
+
+type Voice =
+  | { kind: "system" }
+  | { kind: "local"; key: string; make(text: string, signal?: AbortSignal): Promise<Buffer> }
+  | { kind: "minimax"; key: string; make(text: string, signal?: AbortSignal): Promise<Buffer> };
+
+/** Which voice Theo speaks with right now, and how to make audio in it. */
+function currentVoice(): Voice {
   const settings = getSettings();
-  const speakable = forSpeech(text);
-  if (!speakable || signal.aborted) return;
   if (settings.localVoice && localVoiceInstalled()) {
-    // The free voice makes one sentence at a time, so each is played as soon as it is ready.
-    const chunks = speechChunks(speakable);
-    for (let i = 0; i < chunks.length; i += 1) {
+    const cloned = clonedLocally();
+    let sample = "standard";
+    if (cloned) {
       try {
-        const audio = await speakLocally(chunks[i], clonedLocally(), signal);
-        if (signal.aborted) return;
-        send("turn", { turnId, type: "audio", audio: new Uint8Array(audio) });
-      } catch (error) {
-        if (signal.aborted) return;
-        send("turn", { turnId, type: "system-voice", text: chunks.slice(i).join(" ") });
-        send("turn", {
-          turnId,
-          type: "notice",
-          message: `Used the Mac's voice because ${error instanceof Error ? error.message : error}`,
-        });
-        return;
+        sample = `${fs.statSync(referencePath()).mtimeMs}:${cloned.text}`;
+      } catch {
+        // The recording has just been removed.
       }
     }
-    return;
+    return { kind: "local", key: `local:${sample}`, make: (text, signal) => speakLocally(text, cloned, signal) };
   }
-  if (!minimaxKey) {
-    // No voice service yet: the window falls back to the Mac's built-in voice.
-    send("turn", { turnId, type: "system-voice", text: speakable });
-    return;
-  }
+  const minimaxKey = getSecret("minimax");
+  // No voice service yet: the window falls back to the Mac's built-in voice.
+  if (!minimaxKey) return { kind: "system" };
   const voiceId = settings.voiceId || settings.stockVoiceId;
-  // Start every sentence at once, then hand them over in speaking order.
-  const pending = speechChunks(speakable).map((chunk) =>
-    synthesize(chunk, voiceId, minimaxKey, signal),
-  );
-  pending.forEach((job) => job.catch(() => undefined));
-  try {
-    for (const job of pending) {
-      const audio = await job;
-      if (signal.aborted) return;
-      send("turn", { turnId, type: "audio", audio: new Uint8Array(audio) });
+  return { kind: "minimax", key: `minimax:${voiceId}`, make: (text, signal) => synthesize(text, voiceId, minimaxKey, signal) };
+}
+
+/** Get the quick acknowledgements ready in the current voice, in the background. */
+function prepareQuickReplies(): void {
+  const voice = currentVoice();
+  if (voice.kind === "system" || !getSettings().quickReplies) return;
+  void preparePhrases(voice.key, (text) => voice.make(text));
+}
+
+/**
+ * Everything Theo says in one turn, in the order it was asked to say it. Each piece
+ * starts being turned into audio the moment it arrives, and is handed to the window
+ * as soon as it and everything before it is ready.
+ *
+ * Words meant for the log (`kind`) are sent to the window straight away with an id, and
+ * each piece of audio carries the same id: the window shows the words when their audio
+ * starts, so what is on screen keeps pace with what is heard.
+ */
+function createSpeaker(signal: AbortSignal, emit: (event: Record<string, unknown>) => void) {
+  const voice = currentVoice();
+  let line: Promise<void> = Promise.resolve();
+  let fellBack = false;
+  let lastSaidAt = 0;
+  let firstAudioAt = 0;
+  let pieces = 0;
+  // The voice on this Mac takes about as long to make a piece as to say it, and every
+  // piece costs it extra time for the sample it imitates. Pieces of a sentence or more
+  // keep it ahead of itself; with short ones it falls behind and leaves gaps.
+  const sizes = voice.kind === "local" ? { first: 60 } : {};
+
+  function sayPiece(words: string, options: { keep?: boolean; kind?: "note" | "reply" }): void {
+    const id = options.kind ? String((pieces += 1)) : undefined;
+    if (id) emit({ type: "say", id, text: words, kind: options.kind });
+    const speakable = forSpeech(words);
+    if (!speakable) {
+      // Nothing to hear, such as a bare link: it is shown when the voice reaches it.
+      if (id) line = line.then(() => (signal.aborted ? undefined : emit({ type: "silent", id })));
+      return;
     }
-  } catch (error) {
-    if (signal.aborted) return;
-    send("turn", { turnId, type: "system-voice", text: speakable });
-    send("turn", {
-      turnId,
-      type: "notice",
-      message: `Used the Mac's voice because ${error instanceof Error ? error.message : error}`,
+    const make = () => {
+      if (voice.kind === "system") throw new Error("no voice service");
+      return options.keep ? keptPhrase(voice.key, speakable, () => voice.make(speakable)) : voice.make(speakable, signal);
+    };
+    // MiniMax makes several pieces at once; the voice on this Mac makes one at a time.
+    const early = voice.kind === "minimax" && !fellBack ? make() : null;
+    early?.catch(() => undefined);
+    line = line.then(async () => {
+      if (signal.aborted) return;
+      if (voice.kind === "system" || fellBack) {
+        firstAudioAt ||= Date.now();
+        emit({ type: "system-voice", id, text: speakable });
+        return;
+      }
+      try {
+        const audio = await (early ?? make());
+        if (signal.aborted) return;
+        firstAudioAt ||= Date.now();
+        emit({ type: "audio", id, audio: new Uint8Array(audio) });
+      } catch (error) {
+        if (signal.aborted) return;
+        // The Mac's own voice finishes this turn.
+        fellBack = true;
+        emit({ type: "system-voice", id, text: speakable });
+        emit({ type: "notice", message: `Used the Mac's voice because ${error instanceof Error ? error.message : error}` });
+      }
     });
   }
+
+  function say(text: string, options: { keep?: boolean; kind?: "note" | "reply" } = {}): void {
+    if (signal.aborted || !text.trim()) return;
+    lastSaidAt = Date.now();
+    for (const piece of sentencesOf(text, sizes)) sayPiece(piece, options);
+  }
+
+  return {
+    say,
+    /** Resolves once everything said so far has been handed to the window. */
+    finished: () => line,
+    lastSaidAt: () => lastSaidAt,
+    firstAudioAt: () => firstAudioAt,
+  };
 }
+
+/**
+ * Open connections to the services a turn is about to use, so the turn itself does not
+ * wait for them. The replies are ignored; reaching the service is the point.
+ */
+function warmConnections(...urls: string[]): void {
+  for (const url of urls) {
+    fetch(url, { method: "HEAD", signal: AbortSignal.timeout(4000) }).catch(() => undefined);
+  }
+}
+
+function warmForThinking(): void {
+  const settings = getSettings();
+  if (settings.provider === "claude") warmConnections("https://api.anthropic.com");
+  if (!settings.localVoice && hasSecret("minimax")) warmConnections("https://api-uw.minimax.io");
+}
+
+// A step is named out loud only after this much quiet, so quick work is not narrated.
+const QUIET_BEFORE_NAMING_STEP_MS = 1800;
+// A request that did not sound like work is acknowledged only if the answer is this slow.
+const SLOW_ANSWER_MS = 2000;
 
 async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: string }): Promise<void> {
   cancelActiveTurn();
@@ -275,6 +353,9 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
   const emit = (event: Record<string, unknown>) => {
     if (activeTurn === controller) send("turn", { turnId, ...event });
   };
+  const startedAt = Date.now();
+  let heardAt = 0;
+  let slowAnswer: NodeJS.Timeout | undefined;
 
   try {
     let heard = (input.text ?? "").trim();
@@ -282,28 +363,55 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
       const groqKey = getSecret("groq");
       if (!groqKey) throw new Error("Add a Groq API key in Settings so Theo can hear you. Typing still works without it.");
       emit({ type: "status", status: "transcribing" });
+      warmForThinking();
       heard = await transcribe(Buffer.from(input.audio), input.mimeType ?? "audio/webm", groqKey, controller.signal);
     }
     if (!heard) {
       emit({ type: "done", empty: true });
       return;
     }
+    heardAt = Date.now();
     emit({ type: "heard", text: heard });
     emit({ type: "status", status: "thinking" });
 
-    const reply = await respond(
+    const speaker = createSpeaker(controller.signal, emit);
+    const quick = getSettings().quickReplies;
+    const ack = chooseAck(heard);
+    let answering = false;
+    const acknowledge = () => {
+      if (answering || speaker.lastSaidAt() || controller.signal.aborted) return;
+      speaker.say(ack.text, { keep: true });
+    };
+    if (quick && ack.instant) acknowledge();
+    else if (quick) slowAnswer = setTimeout(acknowledge, SLOW_ANSWER_MS);
+
+    await respond(
       heard,
       {
         confirm: confirmWithPerson,
-        onToolStart: (id, label) => emit({ type: "tool", id, label, state: "running" }),
+        show: (section) => emit({ type: "board", section }),
+        onToolStart: (id, label, fixed) => {
+          emit({ type: "tool", id, label, state: "running" });
+          // Name the step out loud when Theo has been quiet for a while.
+          if (quick && Date.now() - speaker.lastSaidAt() > QUIET_BEFORE_NAMING_STEP_MS) {
+            speaker.say(`${label}.`, { keep: fixed });
+          }
+        },
         onToolEnd: (id, ok) => emit({ type: "tool", id, state: ok ? "done" : "failed" }),
+        onWriting: () => {
+          answering = true;
+        },
+        onSpeech: (text, kind) => speaker.say(text, { kind }),
       },
       controller.signal,
     );
+    clearTimeout(slowAnswer);
     if (controller.signal.aborted) return;
-    emit({ type: "reply", text: reply });
-    await speak(reply, turnId, controller.signal);
-    emit({ type: "done" });
+    await speaker.finished();
+    emit({ type: "done", ok: true });
+    console.info(
+      `[theo] turn: heard after ${heardAt - startedAt} ms, first audio ${speaker.firstAudioAt() ? `${speaker.firstAudioAt() - heardAt} ms` : "none"} after that, finished ${Date.now() - heardAt} ms after that`,
+    );
   } catch (error) {
     if (controller.signal.aborted) {
       emit({ type: "done", cancelled: true });
@@ -312,6 +420,7 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
     emit({ type: "error", message: error instanceof Error ? error.message : String(error) });
     emit({ type: "done" });
   } finally {
+    clearTimeout(slowAnswer);
     if (activeTurn === controller) activeTurn = null;
   }
 }
@@ -323,18 +432,20 @@ function registerIpc(): void {
 
   ipcMain.handle("settings:update", async (_event, patch: Partial<Settings>) => {
     const allowed: (keyof Settings)[] = [
-      "provider", "localVoice", "model", "groqModel", "localUrl", "localModel", "agentUrl", "agentModel", "agentTools", "shortcut", "wakeEnabled", "wakeWord", "keepListening", "confirmScripts", "stockVoiceId", "googleClientId", "microsoftClientId",
+      "provider", "localVoice", "model", "groqModel", "localUrl", "localModel", "agentUrl", "agentModel", "agentTools", "shortcut", "wakeEnabled", "wakeWord", "keepListening", "quickReplies", "confirmScripts", "stockVoiceId", "googleClientId", "microsoftClientId",
     ];
     const clean = Object.fromEntries(
       Object.entries(patch ?? {}).filter(([key]) => allowed.includes(key as keyof Settings)),
     ) as Partial<Settings>;
     const settings = updateSettings(clean);
     if ("shortcut" in clean) registerShortcut(settings.shortcut);
-    // Each service keeps its own conversation format, so switching starts afresh.
-    if ("provider" in clean) resetConversation();
+    // Each service keeps its own conversation format, and what Theo is told must not
+    // change partway through a conversation, so these start a fresh one.
+    if ("provider" in clean || "model" in clean || "quickReplies" in clean) resetConversation();
     // Load the free voice now so the first reply does not wait for it.
     if (clean.localVoice === true) warmLocalVoice();
     if (clean.localVoice === false) stopLocalVoice();
+    prepareQuickReplies();
     return state();
   });
 
@@ -343,6 +454,7 @@ function registerIpc(): void {
       throw new Error("Unknown key");
     }
     setSecret(name, String(value ?? "").trim());
+    prepareQuickReplies();
     return state();
   });
 
@@ -353,19 +465,32 @@ function registerIpc(): void {
     void runTurn({ text: String(text ?? "") });
   });
   ipcMain.handle("talk:cancel", () => cancelActiveTurn());
+  // The microphone has just opened: reach the transcription service before it is needed.
+  ipcMain.handle("talk:warm", () => {
+    if (hasSecret("groq")) warmConnections("https://api.groq.com");
+  });
+  // A reminder ticked off on the board.
+  ipcMain.handle("reminder:complete", async (_event, id: string) => {
+    await eventKit("complete-reminder", { id: String(id ?? "") });
+  });
 
   // A stretch of speech heard while idle: act on it only if it starts with the wake word.
   ipcMain.handle("wake:audio", async (_event, audio: ArrayBuffer) => {
     const settings = getSettings();
     const groqKey = getSecret("groq");
     if (!settings.wakeEnabled || !groqKey || activeTurn) return { matched: false };
-    let heard: string;
+    let heard: { text: string; doubt: string };
     try {
-      heard = await transcribe(Buffer.from(audio), "audio/wav", groqKey, undefined, settings.wakeWord);
+      heard = await transcribeOverheard(Buffer.from(audio), groqKey);
     } catch (error) {
       return { matched: false, error: error instanceof Error ? error.message : String(error) };
     }
-    const request = afterWakeWord(heard, settings.wakeWord);
+    const request = heard.doubt ? null : afterWakeWord(heard.text, settings.wakeWord);
+    // While developing, show what was overheard and why it did or did not wake Theo.
+    if (!app.isPackaged) {
+      const verdict = request !== null ? "woke Theo" : heard.doubt ? `ignored, ${heard.doubt}` : "ignored, no wake word at the start";
+      console.info(`[theo] wake: heard "${heard.text}", ${verdict}`);
+    }
     if (request === null || activeTurn) return { matched: false };
     if (request.split(/\s+/).filter(Boolean).length >= 2) {
       void runTurn({ text: request });
@@ -407,6 +532,7 @@ function registerIpc(): void {
           "Hello. This is how I sound now. Tell me what you need and I'll take care of it.",
           { text },
         );
+        prepareQuickReplies();
         return { state: await state(), sample: new Uint8Array(sample) };
       }
       const minimaxKey = getSecret("minimax");
@@ -419,6 +545,7 @@ function registerIpc(): void {
         voiceId,
         minimaxKey,
       );
+      prepareQuickReplies();
       return { state: await state(), sample: new Uint8Array(sample) };
     },
   );
@@ -442,9 +569,11 @@ function registerIpc(): void {
     if (getSettings().localVoice) {
       removeReference();
       updateSettings({ localVoiceText: "" });
+      prepareQuickReplies();
       return state();
     }
     updateSettings({ voiceId: "" });
+    prepareQuickReplies();
     return state();
   });
 
@@ -511,6 +640,7 @@ if (!app.requestSingleInstanceLock()) {
     createTray();
     registerShortcut(getSettings().shortcut);
     if (getSettings().localVoice) warmLocalVoice();
+    prepareQuickReplies();
     void announceState();
   });
 }

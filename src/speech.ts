@@ -10,22 +10,27 @@ interface MiniMaxBase {
   status_msg?: string;
 }
 
-/** Speech to text through Groq's hosted Whisper. */
-export async function transcribe(
+/** How sure Whisper was about one stretch of what it heard. */
+interface WhisperSegment {
+  avg_logprob?: number;
+  compression_ratio?: number;
+  no_speech_prob?: number;
+  temperature?: number;
+}
+
+async function whisper(
   audio: Buffer,
   mimeType: string,
   groqKey: string,
+  format: "json" | "verbose_json",
   signal?: AbortSignal,
-  /** Words the recogniser should expect, such as an unusual name. */
-  hint = "",
-): Promise<string> {
+): Promise<{ text?: string; segments?: WhisperSegment[] }> {
   const form = new FormData();
   const extension = mimeType.includes("wav") ? "wav" : "webm";
   form.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), `speech.${extension}`);
   form.append("model", "whisper-large-v3-turbo");
-  form.append("response_format", "json");
+  form.append("response_format", format);
   form.append("temperature", "0");
-  if (hint) form.append("prompt", hint);
 
   const response = await fetch(GROQ_TRANSCRIBE, {
     method: "POST",
@@ -37,8 +42,42 @@ export async function transcribe(
     if (response.status === 401) throw new Error("Groq rejected the API key. Check it in Settings.");
     throw new Error(`Transcription failed (HTTP ${response.status}): ${(await response.text()).slice(0, 200)}`);
   }
-  const body = (await response.json()) as { text?: string };
-  return (body.text ?? "").trim();
+  return (await response.json()) as { text?: string; segments?: WhisperSegment[] };
+}
+
+/** Speech to text through Groq's hosted Whisper. */
+export async function transcribe(
+  audio: Buffer,
+  mimeType: string,
+  groqKey: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  return ((await whisper(audio, mimeType, groqKey, "json", signal)).text ?? "").trim();
+}
+
+/**
+ * Speech to text for sound overheard while Theo was idle, to check for the wake word.
+ *
+ * The wake word is deliberately not given to Whisper as a word to expect: told to expect
+ * a name, it will hear that name in a cough or the clatter of a keyboard. Whisper also
+ * writes words for noise, so this says when it was itself unsure, using the measures
+ * Whisper uses to judge its own work (a stretch it thinks was silence, a guess it had to
+ * retry, text that loops). `doubt` is empty when the words can be trusted.
+ */
+export async function transcribeOverheard(audio: Buffer, groqKey: string): Promise<{ text: string; doubt: string }> {
+  const body = await whisper(audio, "audio/wav", groqKey, "verbose_json");
+  const text = (body.text ?? "").trim();
+  // The wake word has to come first, so it is in the first stretch.
+  const first = body.segments?.[0];
+  if (!first) return { text, doubt: "" };
+  const noSpeech = first.no_speech_prob ?? 0;
+  const confidence = first.avg_logprob ?? 0;
+  let doubt = "";
+  if (noSpeech > 0.8 || (noSpeech > 0.5 && confidence < -0.5)) doubt = "probably not speech";
+  else if ((first.temperature ?? 0) > 0) doubt = "the recogniser had to guess";
+  else if (confidence < -1) doubt = "unclear";
+  else if ((first.compression_ratio ?? 0) > 2.4) doubt = "garbled";
+  return { text, doubt };
 }
 
 /** Text to speech in the given MiniMax voice. Returns one MP3 buffer. */
@@ -163,19 +202,6 @@ export async function cloneVoice(
   return voiceId;
 }
 
-/** Split a reply into speakable pieces so the first sentence can play sooner. */
-export function speechChunks(text: string): string[] {
-  const sentences = text.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) ?? [text];
-  const chunks: string[] = [];
-  for (const sentence of sentences) {
-    const last = chunks.length - 1;
-    // Keep very short sentences attached to their neighbour for natural prosody.
-    if (last >= 0 && chunks[last].length < 60) chunks[last] += sentence;
-    else chunks.push(sentence);
-  }
-  return chunks.map((chunk) => chunk.trim()).filter(Boolean);
-}
-
 /** Remove markup that a voice would otherwise read aloud. */
 export function forSpeech(text: string): string {
   return text
@@ -202,22 +228,34 @@ function editDistance(a: string, b: string): number {
   return row[b.length];
 }
 
+// Words people say before a name to get attention. Anything else in front of the wake
+// word means it came up in conversation rather than being said to Theo.
+const GREETINGS = new Set([
+  "hey", "hi", "hello", "hiya", "ok", "okay", "oi", "yo",
+  "um", "umm", "uh", "er", "erm", "ah", "oh", "good", "morning", "afternoon", "evening",
+]);
+
 /**
- * Look for the wake word near the start of what was heard.
+ * Look for the wake word at the start of what was heard: first, or after at most two
+ * greetings ("Hey Jarvis", "Good morning Jarvis").
  * Returns the words after it ("" if nothing followed), or null when it was not said.
  */
 export function afterWakeWord(heard: string, wakeWord: string): string | null {
   const letters = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
   const target = letters(wakeWord);
   if (!target) return null;
-  const tokens = heard.trim().split(/\s+/).filter(Boolean);
+  // Stray punctuation ("...", "-") is not a word.
+  const tokens = heard.trim().split(/\s+/).filter((token) => letters(token));
   const span = Math.max(1, wakeWord.trim().split(/\s+/).length);
-  // Recognisers misspell names, so allow one wrong letter on longer wake words.
-  const tolerance = target.length >= 5 ? 1 : 0;
-  for (let start = 0; start < Math.min(tokens.length, 5); start += 1) {
-    for (const width of [span, span + 1, Math.max(1, span - 1)]) {
+  // Recognisers misspell names, so a long wake word may be one letter out. Heard as more
+  // or fewer words than it has ("Jar vis"), it has to be spelt exactly.
+  const tolerance = target.length >= 6 ? 1 : 0;
+  for (let start = 0; start <= 2 && start < tokens.length; start += 1) {
+    if (start > 0 && !GREETINGS.has(letters(tokens[start - 1]))) break;
+    for (const width of [span, span + 1, span - 1]) {
+      if (width < 1) continue;
       const candidate = letters(tokens.slice(start, start + width).join(""));
-      if (candidate && editDistance(candidate, target) <= tolerance) {
+      if (candidate && editDistance(candidate, target) <= (width === span ? tolerance : 0)) {
         return tokens.slice(start + width).join(" ").replace(/^[\s,.!?:;-]+/, "");
       }
     }
