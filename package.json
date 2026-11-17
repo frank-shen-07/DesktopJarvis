@@ -1,0 +1,67 @@
+{
+  "name": "theo-desktop",
+  "version": "0.1.0",
+  "description": "Theo \u2014 a voice assistant for your Mac that speaks in your cloned voice",
+  "main": "dist/main.js",
+  "private": true,
+  "scripts": {
+    "build:ts": "tsc -p tsconfig.json",
+    "build:native": "mkdir -p native/bin && swiftc -O native/theo-events.swift -o native/bin/theo-events",
+    "build:icon": "node scripts/make-icon.mjs",
+    "build": "npm run build:ts && npm run build:native && npm run build:icon",
+    "dev": "npm run build && env -u ELECTRON_RUN_AS_NODE electron .",
+    "app": "npm run build && env -u ELECTRON_RUN_AS_NODE electron-builder --mac dir",
+    "open": "open release/mac-arm64/Theo.app",
+    "voice:setup": "sh voice/setup.sh"
+  },
+  "build": {
+    "appId": "app.theo.assistant",
+    "productName": "Theo",
+    "files": [
+      "dist/**",
+      "renderer/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "native/bin",
+        "to": "bin"
+      },
+      {
+        "from": "voice",
+        "to": "voice",
+        "filter": [
+          "server.py",
+          "setup.sh"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "mac": {
+      "target": "dir",
+      "icon": "build/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Theo listens when you hold the talk button so it can hear your request.",
+        "NSAppleEventsUsageDescription": "Theo controls apps such as Word, Mail and your browser to carry out what you ask.",
+        "NSCalendarsFullAccessUsageDescription": "Theo reads and adds calendar events when you ask about your schedule.",
+        "NSCalendarsUsageDescription": "Theo reads and adds calendar events when you ask about your schedule.",
+        "NSRemindersFullAccessUsageDescription": "Theo creates and reads reminders when you ask it to remind you of things.",
+        "NSRemindersUsageDescription": "Theo creates and reads reminders when you ask it to remind you of things."
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0"
+  }
+}

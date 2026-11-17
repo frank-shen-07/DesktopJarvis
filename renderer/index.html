@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' blob:; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Theo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="ruler">
+    <span class="wordmark">Theo</span>
+    <ol class="ruler-days" id="ruler-days" aria-hidden="true"></ol>
+    <span class="ruler-month" id="ruler-month"></span>
+  </header>
+
+  <main>
+    <!-- Talk -->
+    <section class="view" id="view-talk">
+      <aside class="column">
+        <div class="hud">
+          <h2 class="hud-title">Local time</h2>
+          <p class="readout" id="hud-time">--:--</p>
+          <p class="readout-sub" id="hud-date"></p>
+        </div>
+        <div class="hud">
+          <h2 class="hud-title">Links</h2>
+          <ul class="link-list" id="hud-links"></ul>
+        </div>
+        <div class="hud">
+          <h2 class="hud-title">System</h2>
+          <dl class="facts">
+            <dt>Voice</dt><dd id="hud-voice"></dd>
+            <dt>Model</dt><dd id="hud-model"></dd>
+            <dt>Hotkey</dt><dd id="hud-hotkey"></dd>
+            <dt>Wake word</dt><dd id="hud-wake"></dd>
+          </dl>
+        </div>
+      </aside>
+
+      <div class="core-wrap">
+        <canvas id="core" aria-hidden="true"></canvas>
+        <button class="core-button" id="talk-button" data-phase="idle" aria-label="Talk to Theo">
+          <span class="core-state" id="core-state">Standby</span>
+        </button>
+        <p class="phase" id="phase">Hold space, or click the core to talk</p>
+      </div>
+
+      <aside class="column column-log">
+        <div class="hud log">
+          <h2 class="hud-title">Comms log</h2>
+          <div class="transcript" id="transcript" aria-live="polite">
+            <div class="empty" id="talk-empty">
+              <p class="empty-lead">Awaiting your request</p>
+              <p>Try “Remind me to call the dentist at four”, “What’s on my calendar tomorrow?” or “Open a new Word document”.</p>
+              <p class="setup-note" id="setup-note" hidden></p>
+            </div>
+          </div>
+
+          <div class="confirm" id="confirm" hidden role="alertdialog" aria-labelledby="confirm-title">
+            <p class="confirm-title" id="confirm-title"></p>
+            <pre class="confirm-detail" id="confirm-detail"></pre>
+            <div class="confirm-actions">
+              <button class="button" id="confirm-no">Cancel</button>
+              <button class="button primary" id="confirm-yes"></button>
+            </div>
+          </div>
+
+          <form class="type-row" id="type-form">
+            <input id="type-input" type="text" autocomplete="off" placeholder="Or type a request" aria-label="Type a request">
+          </form>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Connections -->
+    <section class="view sheet" id="view-connections" hidden>
+      <header class="view-head">
+        <h1>Connections</h1>
+        <p>What Theo can reach when you ask it for something. Each one asks for your permission once.</p>
+      </header>
+      <div class="hud">
+        <div class="rows" id="connection-rows"></div>
+      </div>
+    </section>
+
+    <!-- Voice -->
+    <section class="view sheet" id="view-voice" hidden>
+      <header class="view-head">
+        <h1>Voice</h1>
+        <p id="voice-status"></p>
+      </header>
+
+      <div class="hud panel">
+        <h2 class="hud-title">Free voice on this Mac</h2>
+        <label class="check"><input type="checkbox" id="local-voice"> Speak with the free voice that runs on this Mac</label>
+        <p class="hint" id="local-voice-hint"></p>
+      </div>
+
+      <div class="hud panel">
+        <h2 class="hud-title">Make a voice from a recording</h2>
+        <p class="hint">Read the passage aloud in a quiet room, at your normal pace. Thirty seconds or more gives the closest match; ten is the minimum.</p>
+        <blockquote class="passage">The morning ferry leaves at a quarter past seven, and I like to be on the upper deck before it does. From there you can watch the harbour wake up: the bakers unloading their vans, the gulls arguing over yesterday’s chips, and one very patient dog waiting for his owner outside the newsagent. I usually bring coffee, a notebook, and a vague plan for the day that rarely survives until lunch.</blockquote>
+        <div class="record-row">
+          <button class="button" id="record-button">Start recording</button>
+          <span class="record-time" id="record-time"></span>
+          <label class="file-pick">or <input type="file" id="voice-file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/wav,audio/mp4"><span class="linkish">choose an audio file</span></label>
+        </div>
+        <label class="check"><input type="checkbox" id="voice-consent"> This is my own voice, or I have the speaker’s permission to clone it.</label>
+        <div class="record-row">
+          <button class="button primary" id="clone-button" disabled>Create voice</button>
+          <span class="message" id="voice-message" role="status"></span>
+        </div>
+      </div>
+
+      <div class="record-row">
+        <button class="button" id="preview-button">Play current voice</button>
+        <button class="button quiet" id="remove-voice" hidden>Go back to the standard voice</button>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section class="view sheet" id="view-settings" hidden>
+      <header class="view-head">
+        <h1>Settings</h1>
+        <p>Keys are encrypted with your Mac’s keychain and never leave this computer except to reach each service.</p>
+      </header>
+
+      <div class="hud panel">
+        <h2 class="hud-title">Service keys</h2>
+        <div class="rows" id="key-rows"></div>
+      </div>
+
+      <div class="hud panel">
+        <h2 class="hud-title">Talking</h2>
+        <div class="field">
+          <label for="shortcut">Shortcut to start talking from anywhere</label>
+          <div class="inline">
+            <input id="shortcut" type="text" spellcheck="false">
+            <button class="button" id="shortcut-save">Save shortcut</button>
+            <span class="message" id="shortcut-message" role="status"></span>
+          </div>
+          <p class="hint">Written like Alt+Space or Control+Shift+T. Leave empty for none.</p>
+        </div>
+        <label class="check"><input type="checkbox" id="wake-enabled"> Listen all the time and respond when I say the wake word</label>
+        <div class="field">
+          <label for="wake-word">Wake word</label>
+          <div class="inline">
+            <input id="wake-word" type="text" spellcheck="false">
+            <button class="button" data-save="wakeWord" data-from="wake-word">Save wake word</button>
+          </div>
+          <p class="hint" id="wake-hint">While this is on the microphone stays open, and anything said near your Mac is sent to Groq to check for the wake word. Speech without it is discarded.</p>
+        </div>
+        <label class="check"><input type="checkbox" id="keep-listening"> Keep listening after Theo answers, until I stop talking</label>
+        <label class="check"><input type="checkbox" id="confirm-scripts"> Ask me before Theo runs a custom script on this Mac</label>
+      </div>
+
+      <div class="hud panel">
+        <h2 class="hud-title">Thinking</h2>
+        <div class="field">
+          <label for="provider">Who does the thinking</label>
+          <select id="provider">
+            <option value="claude">Claude (most reliable, paid key)</option>
+            <option value="groq">Groq (fast, free to start, uses your Groq key)</option>
+            <option value="local">A model on this Mac (private, no key)</option>
+            <option value="agent">Another agent (OpenClaw, Hermes)</option>
+          </select>
+          <p class="hint" id="provider-hint"></p>
+        </div>
+        <div class="field" data-provider="claude">
+          <label for="model">Claude model</label>
+          <select id="model">
+            <option value="claude-opus-5-5">Claude Opus 5.5 (recommended)</option>
+            <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (faster, cheaper)</option>
+            <option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest)</option>
+            <option value="claude-fable-5-2">Claude Fable 5.2 (most capable, slowest)</option>
+          </select>
+        </div>
+        <div class="field" data-provider="groq">
+          <label for="groq-model">Groq model</label>
+          <div class="inline">
+            <input id="groq-model" type="text" spellcheck="false">
+            <button class="button" data-save="groqModel" data-from="groq-model">Save model</button>
+          </div>
+          <p class="hint">Pick one that supports tool use from Groq’s model list.</p>
+        </div>
+        <div class="field" data-provider="local">
+          <label for="local-url">Local server address</label>
+          <div class="inline">
+            <input id="local-url" type="text" spellcheck="false">
+            <button class="button" data-save="localUrl" data-from="local-url">Save address</button>
+          </div>
+          <p class="hint">Ollama uses http://localhost:11434/v1 and LM Studio uses http://localhost:1234/v1.</p>
+        </div>
+        <div class="field" data-provider="local">
+          <label for="local-model">Local model name</label>
+          <div class="inline">
+            <input id="local-model" type="text" spellcheck="false">
+            <button class="button" data-save="localModel" data-from="local-model">Save model</button>
+          </div>
+          <p class="hint">Exactly as Ollama or LM Studio lists it. Choose one trained for tool calling.</p>
+        </div>
+        <div class="field" data-provider="agent">
+          <label for="agent-url">Agent address</label>
+          <div class="inline">
+            <input id="agent-url" type="text" spellcheck="false">
+            <button class="button" data-save="agentUrl" data-from="agent-url">Save address</button>
+          </div>
+          <p class="hint">OpenClaw uses http://127.0.0.1:18789/v1 once its OpenAI endpoint is switched on. Hermes Agent uses http://127.0.0.1:8642/v1.</p>
+        </div>
+        <div class="field" data-provider="agent">
+          <label for="agent-model">Agent name</label>
+          <div class="inline">
+            <input id="agent-model" type="text" spellcheck="false">
+            <button class="button" data-save="agentModel" data-from="agent-model">Save name</button>
+          </div>
+          <p class="hint">In OpenClaw, openclaw/default is your main agent and openclaw/ followed by an id picks another.</p>
+        </div>
+        <div class="field" data-provider="agent">
+          <label for="agent-key">Agent key <span class="badge" id="agent-key-badge"></span></label>
+          <div class="inline">
+            <input id="agent-key" type="password" autocomplete="off">
+            <button class="button" id="agent-key-save">Save key</button>
+          </div>
+          <p class="hint">The agent’s gateway token or password. Leave it empty if the agent asks for none.</p>
+        </div>
+        <div class="field" data-provider="agent">
+          <label class="check"><input type="checkbox" id="agent-tools"> Also let the agent use Theo’s tools on this Mac: calendar, reminders, email, Word and files</label>
+        </div>
+        <div><button class="button quiet" id="reset-conversation">Forget this conversation</button></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="dock" aria-label="Sections">
+    <button class="dock-item" data-view="talk" aria-current="page">
+      <span class="dock-ring"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5M12 20.5A8.5 8.5 0 0 1 3.5 12" fill="none" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+      <span class="dock-label">Talk</span>
+    </button>
+    <button class="dock-item" data-view="connections">
+      <span class="dock-ring"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8 11l8-4M8 13l8 4" fill="none" stroke-width="1.6"/></svg></span>
+      <span class="dock-label">Connections</span>
+    </button>
+    <button class="dock-item" data-view="voice">
+      <span class="dock-ring"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v0M8 8v8M12 4.5v15M16 8v8M20 11v2" fill="none" stroke-width="2" stroke-linecap="round"/></svg></span>
+      <span class="dock-label">Voice</span>
+    </button>
+    <button class="dock-item" data-view="settings">
+      <span class="dock-ring"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" fill="none" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="7" r="2" fill="none" stroke-width="1.8"/><circle cx="9" cy="12" r="2" fill="none" stroke-width="1.8"/><circle cx="17" cy="17" r="2" fill="none" stroke-width="1.8"/></svg></span>
+      <span class="dock-label">Settings</span>
+    </button>
+  </nav>
+
+  <script src="dragon.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

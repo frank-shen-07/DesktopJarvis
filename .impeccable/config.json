@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "renderer/index.html"
+        ],
+        "createdAt": "2026-11-16T15:00:03.746Z",
+        "reason": "User: asked for a glowing film-style HUD from a reference image and has since said they like the look; the glow is the requested style"
+      }
+    ]
+  }
+}
