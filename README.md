@@ -114,3 +114,7 @@ this Mac or a private network. Hermes Agent works the same way at
   open it in a browser to watch the animation, and run `npm run build:icon` after editing it
 - `renderer/` the window: React components with CSS Modules, built by Vite. See
   `renderer/README.md` for how it is laid out and how to work on it
+
+## License
+
+MIT. See [LICENSE](LICENSE).
