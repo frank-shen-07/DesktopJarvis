@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs Theo's free local voice (F5-TTS for Apple Silicon) into ~/.theo/voice.
+# Installs DesktopJarvis's free local voice (F5-TTS for Apple Silicon) into ~/.theo/voice.
 # Needs an Apple Silicon build of Python 3.10 or newer, for example from Homebrew.
 set -e
 PYTHON="${PYTHON:-}"
@@ -14,4 +14,4 @@ mkdir -p "$HOME/.theo/voice"
 "$PYTHON" -m venv "$HOME/.theo/voice/venv"
 "$HOME/.theo/voice/venv/bin/pip" install --quiet --upgrade pip
 "$HOME/.theo/voice/venv/bin/pip" install --quiet "f5-tts-mlx==0.2.6"
-echo "Local voice installed. The voice model (about 1.3 GB) downloads the first time Theo speaks with it."
+echo "Local voice installed. The voice model (about 1.3 GB) downloads the first time DesktopJarvis speaks with it."

@@ -1,4 +1,4 @@
-/* Theo — a heads-up display. Everything is light drawn on a dark field:
+/* DesktopJarvis — a heads-up display. Everything is light drawn on a dark field:
    electric blue for the machine, near-white for what the person says. */
 :root {
   --void: #020812;
@@ -489,7 +489,7 @@ main { min-width: 0; min-height: 0; display: grid; }
 .card[data-kind="message"] { grid-column: 1 / -1; }
 .card[data-kind="message"] .card-title { -webkit-line-clamp: 3; font-size: 15px; }
 
-/* A card that asks Theo for something when clicked. */
+/* A card that asks DesktopJarvis for something when clicked. */
 button.card { cursor: pointer; user-select: none; }
 button.card:hover { border-color: var(--blue); background: rgba(30, 167, 255, 0.12); box-shadow: var(--glow); }
 
@@ -595,19 +595,19 @@ button.card:hover { border-color: var(--blue); background: rgba(30, 167, 255, 0.
   text-transform: uppercase;
 }
 
-/* Words Theo has written but not said yet: kept in place, and shown as the voice reaches
+/* Words DesktopJarvis has written but not said yet: kept in place, and shown as the voice reaches
    them. A paragraph shows once any of its words have been said. */
 .piece[data-unsaid] { display: none; }
 .reply:not(:has(.piece:not([data-unsaid]))), .note:not(:has(.piece:not([data-unsaid]))) { display: none; }
 
-/* What Theo says while it is still working. */
+/* What DesktopJarvis says while it is still working. */
 .note { color: var(--text); font-size: 13px; padding-left: 10px; border-left: 1px solid rgba(255, 156, 46, 0.55); }
 
 .heard { color: #f2fbff; font-size: 14px; }
 .heard::before { content: "You"; color: var(--muted); }
 
 .reply { color: var(--bright); font-size: 16px; line-height: 1.45; }
-.reply::before { content: "Theo"; color: var(--blue); }
+.reply::before { content: "DesktopJarvis"; color: var(--blue); }
 
 .steps { list-style: none; display: grid; gap: 3px; font: 11px/1.5 var(--mono); color: var(--muted); }
 

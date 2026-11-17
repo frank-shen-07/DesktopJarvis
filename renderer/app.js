@@ -110,7 +110,7 @@ function drawCore(time) {
   pen.clearRect(0, 0, width, height);
   pen.save();
   pen.translate(width / 2, height / 2);
-  // The dragon reacts to what Theo is doing.
+  // The dragon reacts to what DesktopJarvis is doing.
   let loudness = 0;
   if (analyser) {
     for (let i = 3; i < 99; i += 1) loudness += spectrum[i];
@@ -128,7 +128,7 @@ function drawCore(time) {
   });
   pen.lineCap = "butt";
 
-  // Sound: a ring of bars round the centre while Theo is listening, working or speaking.
+  // Sound: a ring of bars round the centre while DesktopJarvis is listening, working or speaking.
   const inner = R * 0.44;
   const reach = R * 0.2;
   pen.shadowColor = AMBER;
@@ -173,7 +173,7 @@ let pendingTurnNode = null;
 // the log that each one shows when it starts.
 let playQueue = [];
 let playing = false;
-// The step Theo is on, shown whenever it is not speaking.
+// The step DesktopJarvis is on, shown whenever it is not speaking.
 let workLabel = "Thinking";
 // Words in the log that have been written but not yet said.
 let unsaid = 0;
@@ -189,7 +189,7 @@ function setPhase(next, label) {
   talkButton.dataset.phase = next;
   talkButton.setAttribute(
     "aria-label",
-    { idle: "Talk to Theo", listening: "Stop and send", working: "Cancel", speaking: "Stop speaking" }[next],
+    { idle: "Talk to DesktopJarvis", listening: "Stop and send", working: "Cancel", speaking: "Stop speaking" }[next],
   );
   coreState.textContent = { idle: "Standby", listening: "Listening", working: "Working", speaking: "Speaking" }[next];
   if (next === "idle" && !label && wakeActive()) label = `Say “${state.settings.wakeWord}”, or click the core`;
@@ -197,7 +197,7 @@ function setPhase(next, label) {
     label ?? { idle: IDLE_HINT, listening: "Listening", working: "Thinking", speaking: "Click the core to stop" }[next];
 }
 
-/** Between things to say: show the step Theo is on, or that its next words are on their way. */
+/** Between things to say: show the step DesktopJarvis is on, or that its next words are on their way. */
 function showWorking() {
   setPhase("working", unsaid ? "Getting ready to speak" : workLabel);
 }
@@ -214,7 +214,7 @@ function scrollDown() {
   transcript.scrollTop = transcript.scrollHeight;
 }
 
-/** Show words in the log now that Theo is saying them. */
+/** Show words in the log now that DesktopJarvis is saying them. */
 function reveal(piece) {
   const node = piece && transcript.querySelector(`[data-piece="${CSS.escape(piece)}"]`);
   if (!node || !("unsaid" in node.dataset)) return;
@@ -223,7 +223,7 @@ function reveal(piece) {
   scrollDown();
 }
 
-/** Show every word still waiting, for when Theo will not be saying them after all. */
+/** Show every word still waiting, for when DesktopJarvis will not be saying them after all. */
 function revealAll() {
   for (const node of transcript.querySelectorAll(".piece[data-unsaid]")) delete node.dataset.unsaid;
   unsaid = 0;
@@ -249,7 +249,7 @@ function settleIfDone() {
   if (state?.settings.keepListening && lastTurnOk) startListening({ auto: true });
 }
 
-/** Say the next thing in the queue. Theo speaks in pieces, some while it is still working. */
+/** Say the next thing in the queue. DesktopJarvis speaks in pieces, some while it is still working. */
 function playNext() {
   if (playing) return;
   const item = playQueue.shift();
@@ -298,7 +298,7 @@ player.addEventListener("ended", () => {
   playNext();
 });
 
-/** The list of steps at the end of a turn's entry, started afresh after anything Theo says. */
+/** The list of steps at the end of a turn's entry, started afresh after anything DesktopJarvis says. */
 function stepList(turn) {
   const last = turn.node.lastElementChild;
   return last?.matches("ul.steps") ? last : turn.node.appendChild(el("ul", { className: "steps" }));
@@ -336,7 +336,7 @@ theo.on("turn", (event) => {
     case "tool": {
       let step = turn.node.querySelector(`.step[data-id="${CSS.escape(event.id)}"]`);
       if (!step) {
-        // Whatever Theo said before taking a step was a note on its work, not the answer.
+        // Whatever DesktopJarvis said before taking a step was a note on its work, not the answer.
         const last = turn.node.lastElementChild;
         if (last?.matches("p.reply")) last.className = "note";
         step = el("li", { className: "step", textContent: event.label });
@@ -389,7 +389,7 @@ theo.on("turn", (event) => {
       turnFinished = true;
       lastTurnOk = event.ok === true;
       if (event.empty) {
-        turn.node.append(el("p", { className: "turn-notice", textContent: "Theo didn’t catch anything. Try again a little closer to the microphone." }));
+        turn.node.append(el("p", { className: "turn-notice", textContent: "DesktopJarvis didn’t catch anything. Try again a little closer to the microphone." }));
       }
       for (const step of turn.node.querySelectorAll('.step[data-state="running"]')) step.dataset.state = "done";
       if (!turn.node.childElementCount) turn.node.remove();
@@ -459,7 +459,7 @@ function cardNode(card, kind) {
     node.prepend(box);
   }
   if (card.ask) {
-    node.title = "Click to have Theo read this out";
+    node.title = "Click to have DesktopJarvis read this out";
     node.addEventListener("click", () => sendText(card.ask));
   }
   return node;
@@ -544,7 +544,7 @@ async function startListening({ auto }) {
     const node = newTurnNode();
     const fix = el("button", { className: "linkish", textContent: "Open microphone settings" });
     fix.addEventListener("click", () => openLink("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"));
-    node.append(el("p", { className: "turn-error", textContent: "Theo can’t use the microphone. Allow it in System Settings, then try again. " }, fix));
+    node.append(el("p", { className: "turn-error", textContent: "DesktopJarvis can’t use the microphone. Allow it in System Settings, then try again. " }, fix));
     setPhase("idle");
     return;
   }
@@ -576,7 +576,7 @@ async function startListening({ auto }) {
     stopListening(false);
     return;
   }
-  setPhase("listening", auto ? "Listening. Theo sends it when you pause." : "Listening. Let go to send.");
+  setPhase("listening", auto ? "Listening. DesktopJarvis sends it when you pause." : "Listening. Let go to send.");
 
   if (!auto) return;
   // Tap-to-talk: send after a pause, give up if nothing is said.
@@ -679,8 +679,8 @@ $("#type-form").addEventListener("submit", (event) => {
 let wakeStream = null;
 let wakeNode = null;
 let wakeSource = null;
-// After Theo has spoken or listened, the room is ignored for this long: what the
-// microphone picks up then is the tail of Theo's own voice or of the conversation.
+// After DesktopJarvis has spoken or listened, the room is ignored for this long: what the
+// microphone picks up then is the tail of DesktopJarvis's own voice or of the conversation.
 const WAKE_REST_MS = 1200;
 // Overheard sound, cut into stretches of speech that end at the same pause as a request.
 const overheard = theoHearing.createSegmenter({ pauseMs: END_OF_REQUEST_MS });
@@ -728,7 +728,7 @@ async function checkWakeSpeech(chunks) {
 
 function onWakeAudio(event) {
   if (phase !== "idle" || performance.now() < wakeDeafUntil) {
-    // Theo is busy, or has only just finished; ignore the room until it is idle again.
+    // DesktopJarvis is busy, or has only just finished; ignore the room until it is idle again.
     overheard.clear();
     return;
   }
@@ -745,7 +745,7 @@ async function syncWakeListener() {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
     } catch {
-      setMessage($("#wake-hint"), "Theo can’t use the microphone. Allow it in System Settings › Privacy & Security › Microphone.", "bad");
+      setMessage($("#wake-hint"), "DesktopJarvis can’t use the microphone. Allow it in System Settings › Privacy & Security › Microphone.", "bad");
       return;
     }
     await audioContext.resume();
@@ -1014,7 +1014,7 @@ $("#record-button").addEventListener("click", async () => {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } });
   } catch {
-    setMessage($("#voice-message"), "Theo can’t use the microphone. Allow it in System Settings › Privacy & Security › Microphone.", "bad");
+    setMessage($("#voice-message"), "DesktopJarvis can’t use the microphone. Allow it in System Settings › Privacy & Security › Microphone.", "bad");
     return;
   }
   ensureAudio();
@@ -1094,7 +1094,7 @@ $("#clone-button").addEventListener("click", async () => {
     const result = await theo.invoke("voice:clone", { ...voiceSample, consent: $("#voice-consent").checked });
     applyState(result.state);
     voiceSample = null;
-    setMessage($("#voice-message"), "Done. Theo now speaks in this voice.", "good");
+    setMessage($("#voice-message"), "Done. DesktopJarvis now speaks in this voice.", "good");
     await playBytes(result.sample);
   } catch (error) {
     setMessage($("#voice-message"), cleanError(error), "bad");
@@ -1132,7 +1132,7 @@ const KEYS = [
   {
     id: "minimax",
     name: "MiniMax",
-    about: "Clones your voice and speaks in it. Without it Theo uses your Mac’s built-in voice.",
+    about: "Clones your voice and speaks in it. Without it DesktopJarvis uses your Mac’s built-in voice.",
     link: "https://platform.minimax.io/user-center/basic-information/interface-key",
   },
 ];
@@ -1227,10 +1227,10 @@ function applyState(next) {
   $("#hud-model").textContent = activeModel;
   $("#hud-model").title = activeModel;
   const missing = {
-    claude: keys.anthropic ? "" : "Theo needs an Anthropic key before it can answer. ",
-    groq: keys.groq ? "" : "Theo needs a Groq key before it can answer. ",
-    local: settings.localModel ? "" : "Choose a local model before Theo can answer. ",
-    agent: settings.agentUrl && settings.agentModel ? "" : "Add the agent’s address and name before Theo can pass requests to it. ",
+    claude: keys.anthropic ? "" : "DesktopJarvis needs an Anthropic key before it can answer. ",
+    groq: keys.groq ? "" : "DesktopJarvis needs a Groq key before it can answer. ",
+    local: settings.localModel ? "" : "Choose a local model before DesktopJarvis can answer. ",
+    agent: settings.agentUrl && settings.agentModel ? "" : "Add the agent’s address and name before DesktopJarvis can pass requests to it. ",
   }[settings.provider];
   $("#hud-hotkey").textContent = settings.shortcut && state.shortcutActive ? settings.shortcut.replace("Alt", "⌥").replace("+", " ") : "None";
   $("#hud-links").replaceChildren(
@@ -1260,20 +1260,20 @@ function applyState(next) {
   const free = settings.localVoice && state.localVoice.installed;
   $("#voice-status").textContent = free
     ? state.localVoice.cloned
-      ? "Theo speaks in the voice you created, using the free voice on this Mac."
-      : "Theo is using the free voice’s standard voice. Record a sample below to make it sound like you."
+      ? "DesktopJarvis speaks in the voice you created, using the free voice on this Mac."
+      : "DesktopJarvis is using the free voice’s standard voice. Record a sample below to make it sound like you."
     : !keys.minimax
-      ? "Theo is using your Mac’s built-in voice. Turn on the free voice below, or add a MiniMax key in Settings, to give it a cloned one."
+      ? "DesktopJarvis is using your Mac’s built-in voice. Turn on the free voice below, or add a MiniMax key in Settings, to give it a cloned one."
       : settings.voiceId
-        ? "Theo speaks in the voice you created."
-        : "Theo is using a standard voice. Record a sample below to make it sound like you.";
+        ? "DesktopJarvis speaks in the voice you created."
+        : "DesktopJarvis is using a standard voice. Record a sample below to make it sound like you.";
   $("#remove-voice").hidden = free ? !state.localVoice.cloned : !settings.voiceId;
   $("#preview-button").hidden = !free && !keys.minimax;
   $("#local-voice").checked = settings.localVoice;
   $("#local-voice").disabled = !state.localVoice.installed;
   $("#local-voice-hint").textContent = !state.localVoice.installed
-    ? "Not installed yet. Run voice/setup.sh from the Theo folder, then reopen Theo."
-    : "Free and private: nothing is sent anywhere. Each sentence takes about as long to prepare as it does to say, and it uses about 2 GB of memory while on. Making a voice from a recording needs your Groq key, so Theo can note down what the sample says.";
+    ? "Not installed yet. Run voice/setup.sh from the DesktopJarvis folder, then reopen DesktopJarvis."
+    : "Free and private: nothing is sent anywhere. Each sentence takes about as long to prepare as it does to say, and it uses about 2 GB of memory while on. Making a voice from a recording needs your Groq key, so DesktopJarvis can note down what the sample says.";
 
   if (document.activeElement !== $("#shortcut")) $("#shortcut").value = settings.shortcut;
   $("#keep-listening").checked = settings.keepListening;
@@ -1290,7 +1290,7 @@ function applyState(next) {
     claude: "",
     groq: "Open models are quicker but make more mistakes on requests with several steps, and cannot search the web.",
     local: "Nothing leaves this Mac for the thinking step. Start Ollama or LM Studio first. Local models cannot search the web.",
-    agent: "Theo becomes the voice and face. What you say is passed to the agent, which thinks and acts with its own tools and memory, and Theo speaks its reply.",
+    agent: "DesktopJarvis becomes the voice and face. What you say is passed to the agent, which thinks and acts with its own tools and memory, and DesktopJarvis speaks its reply.",
   }[settings.provider];
   for (const field of document.querySelectorAll("[data-provider]")) field.hidden = field.dataset.provider !== settings.provider;
   $("#agent-tools").checked = settings.agentTools;

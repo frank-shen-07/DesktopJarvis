@@ -56,7 +56,7 @@ export async function transcribe(
 }
 
 /**
- * Speech to text for sound overheard while Theo was idle, to check for the wake word.
+ * Speech to text for sound overheard while DesktopJarvis was idle, to check for the wake word.
  *
  * The wake word is deliberately not given to Whisper as a word to expect: told to expect
  * a name, it will hear that name in a cough or the clatter of a keyboard. Whisper also
@@ -73,9 +73,9 @@ export async function transcribeOverheard(audio: Buffer, groqKey: string): Promi
   const noSpeech = first.no_speech_prob ?? 0;
   const confidence = first.avg_logprob ?? 0;
   let doubt = "";
-  if (noSpeech > 0.8 || (noSpeech > 0.5 && confidence < -0.5)) doubt = "probably not speech";
+  if (noSpeech > 0.8 || (noSpeech > 0.6 && confidence < -0.5)) doubt = "probably not speech";
   else if ((first.temperature ?? 0) > 0) doubt = "the recogniser had to guess";
-  else if (confidence < -1) doubt = "unclear";
+  else if (confidence < -1.2) doubt = "unclear";
   else if ((first.compression_ratio ?? 0) > 2.4) doubt = "garbled";
   return { text, doubt };
 }
@@ -229,7 +229,7 @@ function editDistance(a: string, b: string): number {
 }
 
 // Words people say before a name to get attention. Anything else in front of the wake
-// word means it came up in conversation rather than being said to Theo.
+// word means it came up in conversation rather than being said to DesktopJarvis.
 const GREETINGS = new Set([
   "hey", "hi", "hello", "hiya", "ok", "okay", "oi", "yo",
   "um", "umm", "uh", "er", "erm", "ah", "oh", "good", "morning", "afternoon", "evening",
@@ -247,9 +247,9 @@ export function afterWakeWord(heard: string, wakeWord: string): string | null {
   // Stray punctuation ("...", "-") is not a word.
   const tokens = heard.trim().split(/\s+/).filter((token) => letters(token));
   const span = Math.max(1, wakeWord.trim().split(/\s+/).length);
-  // Recognisers misspell names, so a long wake word may be one letter out. Heard as more
+  // Recognisers misspell names, so a wake word of 5+ letters may be one letter out (9+: two). Heard as more
   // or fewer words than it has ("Jar vis"), it has to be spelt exactly.
-  const tolerance = target.length >= 6 ? 1 : 0;
+  const tolerance = target.length >= 9 ? 2 : target.length >= 5 ? 1 : 0;
   for (let start = 0; start <= 2 && start < tokens.length; start += 1) {
     if (start > 0 && !GREETINGS.has(letters(tokens[start - 1]))) break;
     for (const width of [span, span + 1, span - 1]) {

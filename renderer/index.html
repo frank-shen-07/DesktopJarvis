@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' blob:; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Theo</title>
+  <title>DesktopJarvis</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="ruler">
-    <span class="wordmark">Theo</span>
+    <span class="wordmark">DesktopJarvis</span>
     <ol class="ruler-days" id="ruler-days" aria-hidden="true"></ol>
     <span class="ruler-month" id="ruler-month"></span>
   </header>
@@ -41,7 +41,7 @@
       <div class="core-wrap" id="core-wrap">
         <div class="core-stage">
           <canvas id="core" aria-hidden="true"></canvas>
-          <button class="core-button" id="talk-button" data-phase="idle" aria-label="Talk to Theo">
+          <button class="core-button" id="talk-button" data-phase="idle" aria-label="Talk to DesktopJarvis">
             <span class="core-state" id="core-state">Standby</span>
           </button>
         </div>
@@ -85,7 +85,7 @@
     <section class="view sheet" id="view-connections" hidden>
       <header class="view-head">
         <h1>Connections</h1>
-        <p>What Theo can reach when you ask it for something. Each one asks for your permission once.</p>
+        <p>What DesktopJarvis can reach when you ask it for something. Each one asks for your permission once.</p>
       </header>
       <div class="hud">
         <div class="rows" id="connection-rows"></div>
@@ -159,9 +159,9 @@
           </div>
           <p class="hint" id="wake-hint">Start with the wake word, on its own or after “hey”: “Hey Jarvis, what’s on today?”. Said anywhere else in a sentence it is ignored. While this is on the microphone stays open, and speech near your Mac is sent to Groq to check for the wake word; anything without it is discarded.</p>
         </div>
-        <label class="check"><input type="checkbox" id="quick-replies"> Answer straight away with a quick “On it”, and say what Theo is doing while it works</label>
-        <label class="check"><input type="checkbox" id="keep-listening"> Keep listening after Theo answers, until I stop talking</label>
-        <label class="check"><input type="checkbox" id="confirm-scripts"> Ask me before Theo runs a custom script on this Mac</label>
+        <label class="check"><input type="checkbox" id="quick-replies"> Answer straight away with a quick “On it”, and say what DesktopJarvis is doing while it works</label>
+        <label class="check"><input type="checkbox" id="keep-listening"> Keep listening after DesktopJarvis answers, until I stop talking</label>
+        <label class="check"><input type="checkbox" id="confirm-scripts"> Ask me before DesktopJarvis runs a custom script on this Mac</label>
       </div>
 
       <div class="hud panel">
@@ -234,7 +234,7 @@
           <p class="hint">The agent’s gateway token or password. Leave it empty if the agent asks for none.</p>
         </div>
         <div class="field" data-provider="agent">
-          <label class="check"><input type="checkbox" id="agent-tools"> Also let the agent use Theo’s tools on this Mac: calendar, reminders, email, Word and files</label>
+          <label class="check"><input type="checkbox" id="agent-tools"> Also let the agent use DesktopJarvis’s tools on this Mac: calendar, reminders, email, Word and files</label>
         </div>
         <div><button class="button quiet" id="reset-conversation">Forget this conversation</button></div>
       </div>

@@ -1,7 +1,7 @@
 import { MailSummary } from "./mail";
 
 /**
- * The board: cards Theo puts on screen beside what it says, so a list of events,
+ * The board: cards DesktopJarvis puts on screen beside what it says, so a list of events,
  * emails or things to do can be looked at instead of listened to.
  */
 
@@ -17,7 +17,7 @@ export interface BoardCard {
   state?: "past" | "now" | "new" | "late" | "added";
   /** A tick box. With a reminder id, ticking it completes that reminder on the Mac. */
   check?: { reminderId?: string };
-  /** What clicking the card asks Theo to do. */
+  /** What clicking the card asks DesktopJarvis to do. */
   ask?: string;
 }
 
@@ -208,7 +208,7 @@ export function messageSection(mail: { from: string; subject: string; received: 
   };
 }
 
-// ---------- Anything else Theo decides to show ----------
+// ---------- Anything else DesktopJarvis decides to show ----------
 
 export function listSection(input: { title: string; checklist: boolean; items: { title: string; detail?: string; when?: string }[] }): BoardSection {
   return {

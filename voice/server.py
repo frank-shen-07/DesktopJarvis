@@ -1,6 +1,6 @@
-"""Theo's free local voice: F5-TTS on Apple Silicon, kept warm behind a tiny local server.
+"""DesktopJarvis's free local voice: F5-TTS on Apple Silicon, kept warm behind a tiny local server.
 
-Started by Theo with a port and a token. It speaks text in the voice of a short reference
+Started by DesktopJarvis with a port and a token. It speaks text in the voice of a short reference
 recording, and never listens on anything but this Mac.
 
   GET  /health  -> {"ready": true}
@@ -161,7 +161,7 @@ def main():
         try:
             job = jobs.get(timeout=2)
         except queue.Empty:
-            # Theo has gone away without stopping us: do not linger holding memory.
+            # DesktopJarvis has gone away without stopping us: do not linger holding memory.
             if os.getppid() != parent:
                 return 0
             continue

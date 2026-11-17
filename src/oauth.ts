@@ -12,10 +12,10 @@ const MICROSOFT_AUTHORITY = "https://login.microsoftonline.com/common/oauth2/v2.
 const accessTokens = new Map<MailProvider, { token: string; expiresAt: number }>();
 
 const donePage = (message: string) =>
-  `<!doctype html><meta charset="utf-8"><title>Theo</title>
+  `<!doctype html><meta charset="utf-8"><title>DesktopJarvis</title>
 <body style="font: 17px/1.5 -apple-system, system-ui; margin: 18vh auto; max-width: 28rem; color: #1b1f3b">
 <h1 style="font: 600 28px ui-serif, Georgia, serif">${message}</h1>
-<p>You can close this tab and go back to Theo.</p></body>`;
+<p>You can close this tab and go back to DesktopJarvis.</p></body>`;
 
 /**
  * Sign in through the system browser and catch the redirect on a loopback port.
@@ -60,7 +60,7 @@ async function loopbackSignIn(
         finish(new Error(error ?? "Sign-in was cancelled"));
         return;
       }
-      res.end(donePage("Theo is connected."));
+      res.end(donePage("DesktopJarvis is connected."));
       finish(null, code);
     };
 
@@ -216,7 +216,7 @@ export async function accessToken(provider: MailProvider): Promise<string> {
 
   const label = provider === "gmail" ? "Gmail" : "Outlook";
   const refresh = getSecret(provider === "gmail" ? "googleRefresh" : "microsoftRefresh");
-  if (!refresh) throw new Error(`${label} is not connected. Connect it in Theo's Connections tab.`);
+  if (!refresh) throw new Error(`${label} is not connected. Connect it in DesktopJarvis's Connections tab.`);
 
   try {
     if (provider === "gmail") {
@@ -241,7 +241,7 @@ export async function accessToken(provider: MailProvider): Promise<string> {
     return tokens.access_token;
   } catch (error) {
     throw new Error(
-      `${label} sign-in has expired. Reconnect it in Theo's Connections tab. (${
+      `${label} sign-in has expired. Reconnect it in DesktopJarvis's Connections tab. (${
         error instanceof Error ? error.message : error
       })`,
     );

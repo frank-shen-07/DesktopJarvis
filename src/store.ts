@@ -17,14 +17,14 @@ export interface Settings {
   agentUrl: string;
   /** Which agent to talk to there, in that agent's own naming. */
   agentModel: string;
-  /** Offer Theo's own Mac tools to the agent alongside whatever it can already do. */
+  /** Offer DesktopJarvis's own Mac tools to the agent alongside whatever it can already do. */
   agentTools: boolean;
   shortcut: string;
   /** Listen all the time and respond when the wake word is heard. */
   wakeEnabled: boolean;
   wakeWord: string;
   keepListening: boolean;
-  /** Say "On it" as soon as a request is heard, and say what Theo is doing while it works. */
+  /** Say "On it" as soon as a request is heard, and say what DesktopJarvis is doing while it works. */
   quickReplies: boolean;
   confirmScripts: boolean;
   /** MiniMax voice id of the user's clone; empty until they create one. */

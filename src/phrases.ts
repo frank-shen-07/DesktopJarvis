@@ -4,7 +4,7 @@ import path from "path";
 import { app } from "electron";
 
 /**
- * The quick things Theo says while it works: an acknowledgement the moment a request
+ * The quick things DesktopJarvis says while it works: an acknowledgement the moment a request
  * is heard, and the name of the step it is on. They are short and repeat often, so the
  * audio for each is made once per voice and kept on disk, and plays without a wait.
  */
@@ -16,7 +16,7 @@ const WAIT_ACKS = ["One sec.", "Give me a moment."];
 /** Every acknowledgement, for preparing their audio ahead of time. */
 export const ACKS = [...new Set([...QUESTION_ACKS, ...COMMAND_ACKS, ...WAIT_ACKS])];
 
-// Words that mean Theo will have to go and do something before it can answer.
+// Words that mean DesktopJarvis will have to go and do something before it can answer.
 const TASK =
   /\b(calendar|schedule|meetings?|events?|appointments?|remind|reminders?|e-?mails?|mail|inbox|messages?|send|draft|reply|open|launch|play|pause|search|look up|find|files?|documents?|word|excel|browser|page|website|notes?|add|create|set|book|weather|news|forecast|volume|check|summari[sz]e|what'?s on|to-?dos?|tasks?)\b/i;
 const QUESTION =
@@ -153,7 +153,7 @@ export function keptPhrase(voice: string, text: string, make: () => Promise<Buff
       await fs.promises.mkdir(path.dirname(file), { recursive: true });
       await fs.promises.writeFile(file, audio, { mode: 0o600 });
     } catch {
-      // Without the file it is simply made again next time Theo starts.
+      // Without the file it is simply made again next time DesktopJarvis starts.
     }
     return audio;
   })().finally(() => making.delete(file));

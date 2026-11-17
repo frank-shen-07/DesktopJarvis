@@ -1,4 +1,4 @@
-# Theo desktop
+# DesktopJarvis
 
 A Mac app you talk to. It answers in a cloned voice and can act on your Mac:
 open apps and files, create Word documents, read and add Calendar events and
@@ -6,19 +6,19 @@ Reminders, read and send Gmail and Outlook mail, and browse the web.
 
 ## Screenshots
 
-“What’s on my calendar tomorrow?” Theo answers out loud and the dragon draws the day as cards:
+“What’s on my calendar tomorrow?” DesktopJarvis answers out loud and the dragon draws the day as cards:
 
-![Theo showing tomorrow's calendar as cards](docs/screenshots/calendar.png)
+![DesktopJarvis showing tomorrow's calendar as cards](docs/screenshots/calendar.png)
 
 “Anything I need to deal with today?” Unread mail and open reminders, with one ticked off:
 
-![Theo showing unread mail and reminders as cards](docs/screenshots/inbox.png)
+![DesktopJarvis showing unread mail and reminders as cards](docs/screenshots/inbox.png)
 
 The screenshots use made-up sample data.
 
 ## How a turn goes
 
-Theo answers in pieces instead of all at once:
+DesktopJarvis answers in pieces instead of all at once:
 
 - The moment a request is heard it says a short "On it" or "Let me check". The audio
   for these is made once per voice and kept, so it plays without a wait.
@@ -33,14 +33,14 @@ its timings to the console (`[theo] turn: …`) when started with `npm run dev`.
 
 Calendar events, reminders and email are also put on screen as cards, which the dragon
 draws under itself. Tick a reminder to complete it, click an email to have it read
-out, and press Escape or Close to put the cards away. Theo can put up its own lists
+out, and press Escape or Close to put the cards away. DesktopJarvis can put up its own lists
 the same way, for example a plan for the day.
 
 ## Run it
 
 ```bash
 npm install
-npm run app     # builds release/mac-arm64/Theo.app
+npm run app     # builds release/mac-arm64/DesktopJarvis.app
 npm run open    # launches it
 ```
 
@@ -58,7 +58,7 @@ Each rebuild is a new signature, so macOS asks for the permissions again.
 
 ## Free voice on this Mac
 
-Theo can speak, and clone a voice, with an open model (F5-TTS) that runs on
+DesktopJarvis can speak, and clone a voice, with an open model (F5-TTS) that runs on
 Apple Silicon instead of MiniMax. Nothing is sent anywhere and it costs nothing.
 
 ```bash
@@ -72,15 +72,15 @@ sample.
 
 ## Using another agent (OpenClaw, Hermes)
 
-In Settings, under Thinking, choose "Another agent". Theo then passes what you
+In Settings, under Thinking, choose "Another agent". DesktopJarvis then passes what you
 say to that agent and speaks its reply; the agent thinks and acts with its own
-tools and memory. Tick the box there to also offer it Theo's Mac tools.
+tools and memory. Tick the box there to also offer it DesktopJarvis's Mac tools.
 
 OpenClaw:
 
 1. Switch on its OpenAI endpoint in the gateway config and restart the gateway:
    `gateway.http.endpoints.chatCompletions.enabled: true`
-2. In Theo, keep the address `http://127.0.0.1:18789/v1` and the name
+2. In DesktopJarvis, keep the address `http://127.0.0.1:18789/v1` and the name
    `openclaw/default`, and paste the gateway token as the agent key.
 
 That token gives full control of the OpenClaw gateway, so keep the gateway on
@@ -91,7 +91,7 @@ this Mac or a private network. Hermes Agent works the same way at
 
 - `src/main.ts` window, menu bar item, global shortcut, one spoken turn
 - `src/agent.ts` tool loop for Claude, Groq, local models and other agents
-- `src/tools.ts` everything Theo can do on the Mac
+- `src/tools.ts` everything DesktopJarvis can do on the Mac
 - `src/oauth.ts`, `src/mail.ts` Gmail and Outlook sign-in and mail
 - `src/speech.ts` transcription, speech, voice cloning
 - `src/phrases.ts` the quick acknowledgements, and sentences out of a stream

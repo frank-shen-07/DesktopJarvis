@@ -38,6 +38,10 @@ import {
   updateSettings,
 } from "./store";
 
+// The app used to be called Theo, and Electron names its data folder after the app.
+// Keep using the old folder so settings, mail sign-ins, the voice and cached phrases stay.
+app.setPath("userData", path.join(app.getPath("appData"), "theo-desktop"));
+
 let window: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let quitting = false;
@@ -73,7 +77,7 @@ function createWindow(): void {
     height: 780,
     minWidth: 1000,
     minHeight: 660,
-    title: "Theo",
+    title: "DesktopJarvis",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 16, y: 12 },
     backgroundColor: "#020812",
@@ -87,7 +91,7 @@ function createWindow(): void {
   });
   void window.loadFile(path.join(app.getAppPath(), "renderer", "index.html"));
   window.once("ready-to-show", () => window?.show());
-  // Closing the window keeps Theo in the menu bar, ready for the shortcut.
+  // Closing the window keeps DesktopJarvis in the menu bar, ready for the shortcut.
   window.on("close", (event) => {
     if (quitting) return;
     event.preventDefault();
@@ -114,14 +118,14 @@ function registerShortcut(accelerator: string): boolean {
 
 function createTray(): void {
   tray = new Tray(nativeImage.createEmpty());
-  tray.setTitle("Theo");
-  tray.setToolTip("Theo");
+  tray.setTitle("DesktopJarvis");
+  tray.setToolTip("DesktopJarvis");
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "Talk to Theo", click: startTalking },
+      { label: "Talk to DesktopJarvis", click: startTalking },
       { label: "Show window", click: showWindow },
       { type: "separator" },
-      { label: "Quit Theo", click: () => app.quit() },
+      { label: "Quit DesktopJarvis", click: () => app.quit() },
     ]),
   );
 }
@@ -219,7 +223,7 @@ type Voice =
   | { kind: "local"; key: string; make(text: string, signal?: AbortSignal): Promise<Buffer> }
   | { kind: "minimax"; key: string; make(text: string, signal?: AbortSignal): Promise<Buffer> };
 
-/** Which voice Theo speaks with right now, and how to make audio in it. */
+/** Which voice DesktopJarvis speaks with right now, and how to make audio in it. */
 function currentVoice(): Voice {
   const settings = getSettings();
   if (settings.localVoice && localVoiceInstalled()) {
@@ -249,7 +253,7 @@ function prepareQuickReplies(): void {
 }
 
 /**
- * Everything Theo says in one turn, in the order it was asked to say it. Each piece
+ * Everything DesktopJarvis says in one turn, in the order it was asked to say it. Each piece
  * starts being turned into audio the moment it arrives, and is handed to the window
  * as soon as it and everything before it is ready.
  *
@@ -361,7 +365,7 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
     let heard = (input.text ?? "").trim();
     if (input.audio) {
       const groqKey = getSecret("groq");
-      if (!groqKey) throw new Error("Add a Groq API key in Settings so Theo can hear you. Typing still works without it.");
+      if (!groqKey) throw new Error("Add a Groq API key in Settings so DesktopJarvis can hear you. Typing still works without it.");
       emit({ type: "status", status: "transcribing" });
       warmForThinking();
       heard = await transcribe(Buffer.from(input.audio), input.mimeType ?? "audio/webm", groqKey, controller.signal);
@@ -392,7 +396,7 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
         show: (section) => emit({ type: "board", section }),
         onToolStart: (id, label, fixed) => {
           emit({ type: "tool", id, label, state: "running" });
-          // Name the step out loud when Theo has been quiet for a while.
+          // Name the step out loud when DesktopJarvis has been quiet for a while.
           if (quick && Date.now() - speaker.lastSaidAt() > QUIET_BEFORE_NAMING_STEP_MS) {
             speaker.say(`${label}.`, { keep: fixed });
           }
@@ -439,7 +443,7 @@ function registerIpc(): void {
     ) as Partial<Settings>;
     const settings = updateSettings(clean);
     if ("shortcut" in clean) registerShortcut(settings.shortcut);
-    // Each service keeps its own conversation format, and what Theo is told must not
+    // Each service keeps its own conversation format, and what DesktopJarvis is told must not
     // change partway through a conversation, so these start a fresh one.
     if ("provider" in clean || "model" in clean || "quickReplies" in clean) resetConversation();
     // Load the free voice now so the first reply does not wait for it.
@@ -486,9 +490,9 @@ function registerIpc(): void {
       return { matched: false, error: error instanceof Error ? error.message : String(error) };
     }
     const request = heard.doubt ? null : afterWakeWord(heard.text, settings.wakeWord);
-    // While developing, show what was overheard and why it did or did not wake Theo.
+    // While developing, show what was overheard and why it did or did not wake DesktopJarvis.
     if (!app.isPackaged) {
-      const verdict = request !== null ? "woke Theo" : heard.doubt ? `ignored, ${heard.doubt}` : "ignored, no wake word at the start";
+      const verdict = request !== null ? "woke DesktopJarvis" : heard.doubt ? `ignored, ${heard.doubt}` : "ignored, no wake word at the start";
       console.info(`[theo] wake: heard "${heard.text}", ${verdict}`);
     }
     if (request === null || activeTurn) return { matched: false };
@@ -520,12 +524,12 @@ function registerIpc(): void {
       if (getSettings().localVoice) {
         // The free voice imitates a short sample and needs to know what is said in it.
         const groqKey = getSecret("groq");
-        if (!groqKey) throw new Error("Add a Groq key in Settings first. Theo uses it to note down what your sample says.");
+        if (!groqKey) throw new Error("Add a Groq key in Settings first. DesktopJarvis uses it to note down what your sample says.");
         const clip = await saveReference(audio, input.filename);
         const text = await transcribe(clip, "audio/wav", groqKey);
         if (!text) {
           removeReference();
-          throw new Error("Theo could not make out any words in that recording");
+          throw new Error("DesktopJarvis could not make out any words in that recording");
         }
         updateSettings({ localVoiceText: text });
         const sample = await speakLocally(
@@ -584,7 +588,7 @@ function registerIpc(): void {
       const result = await eventKit<{ granted: boolean }>("request", { kind: id });
       if (!result.granted) {
         throw new Error(
-          `macOS did not grant access. Turn Theo on in System Settings › Privacy & Security › ${id === "calendar" ? "Calendars" : "Reminders"}.`,
+          `macOS did not grant access. Turn DesktopJarvis on in System Settings › Privacy & Security › ${id === "calendar" ? "Calendars" : "Reminders"}.`,
         );
       }
     } else if (id === "word") {
@@ -605,7 +609,7 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("open:external", (_event, url: string) => {
-    if (!SETUP_LINKS.has(url)) throw new Error("That link is not one Theo opens");
+    if (!SETUP_LINKS.has(url)) throw new Error("That link is not one DesktopJarvis opens");
     return shell.openExternal(url);
   });
 }

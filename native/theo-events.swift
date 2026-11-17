@@ -51,7 +51,7 @@ func requireAccess(_ type: EKEntityType) {
     if status == "granted" { return }
     if status == "notDetermined", request(type) { return }
     let name = type == .event ? "Calendar" : "Reminders"
-    fail("Theo does not have access to \(name). Allow it in System Settings › Privacy & Security › \(name == "Calendar" ? "Calendars" : "Reminders").")
+    fail("DesktopJarvis does not have access to \(name). Allow it in System Settings › Privacy & Security › \(name == "Calendar" ? "Calendars" : "Reminders").")
 }
 
 func date(_ value: Any?) -> Date? {

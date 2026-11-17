@@ -43,7 +43,7 @@ export async function appleScript(
 
 function explainAutomationError(stderr: string): string {
   if (stderr.includes("-1743") || stderr.includes("Not authorized")) {
-    return "macOS blocked Theo from controlling that app. Allow it in System Settings › Privacy & Security › Automation, then try again.";
+    return "macOS blocked DesktopJarvis from controlling that app. Allow it in System Settings › Privacy & Security › Automation, then try again.";
   }
   if (stderr.includes("-1728") || stderr.includes("-1719")) {
     return `The app could not find what was asked for. ${stderr.trim()}`;
@@ -87,7 +87,7 @@ export function toEpoch(value: unknown, field: string): number {
   }
   const ms = new Date(value).getTime();
   if (Number.isNaN(ms)) {
-    throw new Error(`${field} is not a date and time Theo can read: ${value}`);
+    throw new Error(`${field} is not a date and time DesktopJarvis can read: ${value}`);
   }
   return ms / 1000;
 }

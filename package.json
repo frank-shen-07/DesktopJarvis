@@ -1,7 +1,7 @@
 {
-  "name": "theo-desktop",
+  "name": "desktop-jarvis",
   "version": "0.1.0",
-  "description": "Theo \u2014 a voice assistant for your Mac that speaks in your cloned voice",
+  "description": "DesktopJarvis \u2014 a voice assistant for your Mac that speaks in your cloned voice",
   "main": "dist/main.js",
   "private": true,
   "scripts": {
@@ -11,12 +11,12 @@
     "build": "npm run build:ts && npm run build:native && npm run build:icon",
     "dev": "npm run build && env -u ELECTRON_RUN_AS_NODE electron .",
     "app": "npm run build && env -u ELECTRON_RUN_AS_NODE electron-builder --mac dir",
-    "open": "open release/mac-arm64/Theo.app",
+    "open": "open release/mac-arm64/DesktopJarvis.app",
     "voice:setup": "sh voice/setup.sh"
   },
   "build": {
     "appId": "app.theo.assistant",
-    "productName": "Theo",
+    "productName": "DesktopJarvis",
     "files": [
       "dist/**",
       "renderer/**",
@@ -46,12 +46,12 @@
       "identity": "-",
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "Theo listens when you hold the talk button so it can hear your request.",
-        "NSAppleEventsUsageDescription": "Theo controls apps such as Word, Mail and your browser to carry out what you ask.",
-        "NSCalendarsFullAccessUsageDescription": "Theo reads and adds calendar events when you ask about your schedule.",
-        "NSCalendarsUsageDescription": "Theo reads and adds calendar events when you ask about your schedule.",
-        "NSRemindersFullAccessUsageDescription": "Theo creates and reads reminders when you ask it to remind you of things.",
-        "NSRemindersUsageDescription": "Theo creates and reads reminders when you ask it to remind you of things."
+        "NSMicrophoneUsageDescription": "DesktopJarvis listens when you hold the talk button so it can hear your request.",
+        "NSAppleEventsUsageDescription": "DesktopJarvis controls apps such as Word, Mail and your browser to carry out what you ask.",
+        "NSCalendarsFullAccessUsageDescription": "DesktopJarvis reads and adds calendar events when you ask about your schedule.",
+        "NSCalendarsUsageDescription": "DesktopJarvis reads and adds calendar events when you ask about your schedule.",
+        "NSRemindersFullAccessUsageDescription": "DesktopJarvis creates and reads reminders when you ask it to remind you of things.",
+        "NSRemindersUsageDescription": "DesktopJarvis creates and reads reminders when you ask it to remind you of things."
       }
     }
   },

@@ -5,7 +5,7 @@
  * surfaces. A 3D model of the head is scattered with thousands of glowing points, banded
  * with broken arcs, crossed by thin rays and circled by slow rings, with out-of-focus discs
  * of light drifting through it. Fire rolls off the back of the skull. The head turns to
- * follow the pointer, blinks, and moves its jaw with Theo's voice. When cards are being
+ * follow the pointer, blinks, and moves its jaw with DesktopJarvis's voice. When cards are being
  * drawn on the board it looks down at them with its mouth wide open (the jet of fire
  * itself is drawn by forge.js).
  *

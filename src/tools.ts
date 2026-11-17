@@ -18,7 +18,7 @@ import { getSettings } from "./store";
 export interface ToolContext {
   /** Ask the person to approve an action. Resolves false if they decline. */
   confirm(request: { title: string; detail: string; action: string }): Promise<boolean>;
-  /** Put a set of cards on screen beside what Theo says. */
+  /** Put a set of cards on screen beside what DesktopJarvis says. */
   show(section: BoardSection): void;
 }
 
@@ -60,14 +60,14 @@ function mailAccount(input: Input): MailProvider {
   const outlook = isConnected("outlook");
   if (wanted === "gmail" || wanted === "outlook") {
     if (!isConnected(wanted)) {
-      throw new Error(`${wanted === "gmail" ? "Gmail" : "Outlook"} is not connected. The person can connect it in Theo's Connections tab.`);
+      throw new Error(`${wanted === "gmail" ? "Gmail" : "Outlook"} is not connected. The person can connect it in DesktopJarvis's Connections tab.`);
     }
     return wanted;
   }
   if (gmail && outlook) throw new Error("Both Gmail and Outlook are connected. Say which account to use.");
   if (gmail) return "gmail";
   if (outlook) return "outlook";
-  throw new Error("No email account is connected. The person can connect Gmail or Outlook in Theo's Connections tab.");
+  throw new Error("No email account is connected. The person can connect Gmail or Outlook in DesktopJarvis's Connections tab.");
 }
 
 const FILE_KINDS: Record<string, string[]> = {

@@ -7,7 +7,7 @@ import path from "path";
 import { app } from "electron";
 
 /**
- * Theo's free voice: an open model (F5-TTS) that runs on this Mac and imitates a short
+ * DesktopJarvis's free voice: an open model (F5-TTS) that runs on this Mac and imitates a short
  * recording. It lives in its own Python environment under ~/.theo/voice, set up by
  * voice/setup.sh, and is started the first time it is needed.
  */
@@ -29,7 +29,7 @@ export function localVoiceInstalled(): boolean {
   return fs.existsSync(PYTHON);
 }
 
-/** Where the recording Theo imitates is kept. */
+/** Where the recording DesktopJarvis imitates is kept. */
 export function referencePath(): string {
   return path.join(app.getPath("userData"), "voice-reference.wav");
 }
@@ -47,7 +47,7 @@ function freePort(): Promise<number> {
 
 async function start(): Promise<void> {
   if (!localVoiceInstalled()) {
-    throw new Error("The free voice is not installed yet. Run voice/setup.sh from the Theo folder first.");
+    throw new Error("The free voice is not installed yet. Run voice/setup.sh from the DesktopJarvis folder first.");
   }
   const port = await freePort();
   const token = crypto.randomBytes(24).toString("hex");
