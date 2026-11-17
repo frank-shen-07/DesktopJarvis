@@ -48,13 +48,23 @@ Use the packaged app rather than `npm run dev` when testing Calendar, Reminders
 or Word: macOS only shows those permission prompts for the packaged build.
 Each rebuild is a new signature, so macOS asks for the permissions again.
 
+## Lint and format
+
+```sh
+npm run check    # oxlint, Prettier and a type check; run before committing
+npm run lint:fix # apply oxlint's automatic fixes
+npm run format   # rewrite files in Prettier style
+```
+
+Linting uses [oxlint](https://oxc.rs) rather than ESLint, because typescript-eslint does not support TypeScript 7 yet. Rules are in `.oxlintrc.json`.
+
 ## Keys (Settings tab)
 
-| Key | Used for | Needed |
-|---|---|---|
-| Anthropic | Claude decides what to say and do | When Claude does the thinking |
-| Groq | Speech to text | For talking; typing works without it |
-| MiniMax | Voice cloning and speech | For the cloned voice; the Mac's voice is used without it |
+| Key       | Used for                          | Needed                                                   |
+| --------- | --------------------------------- | -------------------------------------------------------- |
+| Anthropic | Claude decides what to say and do | When Claude does the thinking                            |
+| Groq      | Speech to text                    | For talking; typing works without it                     |
+| MiniMax   | Voice cloning and speech          | For the cloned voice; the Mac's voice is used without it |
 
 ## Free voice on this Mac
 

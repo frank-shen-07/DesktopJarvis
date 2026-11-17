@@ -112,9 +112,7 @@ export async function synthesize(
     throw new Error(`MiniMax speech failed with HTTP ${response.status}`);
   }
   if (!response.ok || (body.base_resp?.status_code ?? 0) !== 0) {
-    throw new Error(
-      `MiniMax could not speak: ${body.base_resp?.status_msg ?? `HTTP ${response.status}`}`,
-    );
+    throw new Error(`MiniMax could not speak: ${body.base_resp?.status_msg ?? `HTTP ${response.status}`}`);
   }
   const hex = body.data?.audio;
   if (!hex || !/^[0-9a-f]+$/i.test(hex) || hex.length % 2 !== 0) {
@@ -123,12 +121,7 @@ export async function synthesize(
   return Buffer.from(hex, "hex");
 }
 
-async function uploadForClone(
-  audio: Buffer,
-  filename: string,
-  mimeType: string,
-  minimaxKey: string,
-): Promise<string> {
+async function uploadForClone(audio: Buffer, filename: string, mimeType: string, minimaxKey: string): Promise<string> {
   const form = new FormData();
   form.append("purpose", "voice_clone");
   form.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), filename);
@@ -147,9 +140,7 @@ async function uploadForClone(
     throw new Error(`MiniMax upload failed with HTTP ${response.status}`);
   }
   if (!response.ok || (body.base_resp?.status_code ?? 0) !== 0) {
-    throw new Error(
-      `MiniMax rejected the recording: ${body.base_resp?.status_msg ?? `HTTP ${response.status}`}`,
-    );
+    throw new Error(`MiniMax rejected the recording: ${body.base_resp?.status_msg ?? `HTTP ${response.status}`}`);
   }
   const fileId = body.file?.file_id;
   if (!fileId || !/^\d+$/.test(String(fileId))) {
@@ -192,9 +183,7 @@ export async function cloneVoice(
     throw new Error(`MiniMax voice cloning failed with HTTP ${response.status}`);
   }
   if (!response.ok || (body.base_resp?.status_code ?? 0) !== 0) {
-    throw new Error(
-      `MiniMax could not clone this voice: ${body.base_resp?.status_msg ?? `HTTP ${response.status}`}`,
-    );
+    throw new Error(`MiniMax could not clone this voice: ${body.base_resp?.status_msg ?? `HTTP ${response.status}`}`);
   }
   if (body.input_sensitive) {
     throw new Error("MiniMax rejected the recording during its content safety check");
@@ -231,8 +220,25 @@ function editDistance(a: string, b: string): number {
 // Words people say before a name to get attention. Anything else in front of the wake
 // word means it came up in conversation rather than being said to DesktopJarvis.
 const GREETINGS = new Set([
-  "hey", "hi", "hello", "hiya", "ok", "okay", "oi", "yo",
-  "um", "umm", "uh", "er", "erm", "ah", "oh", "good", "morning", "afternoon", "evening",
+  "hey",
+  "hi",
+  "hello",
+  "hiya",
+  "ok",
+  "okay",
+  "oi",
+  "yo",
+  "um",
+  "umm",
+  "uh",
+  "er",
+  "erm",
+  "ah",
+  "oh",
+  "good",
+  "morning",
+  "afternoon",
+  "evening",
 ]);
 
 /**
@@ -245,18 +251,26 @@ export function afterWakeWord(heard: string, wakeWord: string): string | null {
   const target = letters(wakeWord);
   if (!target) return null;
   // Stray punctuation ("...", "-") is not a word.
-  const tokens = heard.trim().split(/\s+/).filter((token) => letters(token));
+  const tokens = heard
+    .trim()
+    .split(/\s+/)
+    .filter((token) => letters(token));
   const span = Math.max(1, wakeWord.trim().split(/\s+/).length);
   // Recognisers misspell names, so a wake word of 5+ letters may be one letter out (9+: two). Heard as more
   // or fewer words than it has ("Jar vis"), it has to be spelt exactly.
-  const tolerance = target.length >= 9 ? 2 : target.length >= 5 ? 1 : 0;
+  let tolerance = 0;
+  if (target.length >= 9) tolerance = 2;
+  else if (target.length >= 5) tolerance = 1;
   for (let start = 0; start <= 2 && start < tokens.length; start += 1) {
     if (start > 0 && !GREETINGS.has(letters(tokens[start - 1]))) break;
     for (const width of [span, span + 1, span - 1]) {
       if (width < 1) continue;
       const candidate = letters(tokens.slice(start, start + width).join(""));
       if (candidate && editDistance(candidate, target) <= (width === span ? tolerance : 0)) {
-        return tokens.slice(start + width).join(" ").replace(/^[\s,.!?:;-]+/, "");
+        return tokens
+          .slice(start + width)
+          .join(" ")
+          .replace(/^[\s,.!?:;-]+/, "");
       }
     }
   }

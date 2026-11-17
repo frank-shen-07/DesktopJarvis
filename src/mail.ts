@@ -1,4 +1,4 @@
-import { accessToken, MailProvider } from "./oauth";
+import { accessToken, type MailProvider } from "./oauth";
 
 export interface MailSummary {
   account: MailProvider;
@@ -17,11 +17,7 @@ export interface OutgoingMail {
   body: string;
 }
 
-async function api<T>(
-  provider: MailProvider,
-  url: string,
-  init: RequestInit = {},
-): Promise<T> {
+async function api<T>(provider: MailProvider, url: string, init: RequestInit = {}): Promise<T> {
   const token = await accessToken(provider);
   const response = await fetch(url, {
     ...init,
@@ -34,16 +30,17 @@ async function api<T>(
   });
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 300);
-    throw new Error(
-      `${provider === "gmail" ? "Gmail" : "Outlook"} returned HTTP ${response.status}: ${detail}`,
-    );
+    throw new Error(`${provider === "gmail" ? "Gmail" : "Outlook"} returned HTTP ${response.status}: ${detail}`);
   }
   if (response.status === 202 || response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
 function clip(text: string, max: number): string {
-  const clean = text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  const clean = text
+    .replace(/\r/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   return clean.length > max ? `${clean.slice(0, max)}\n[…message truncated]` : clean;
 }
 
@@ -82,10 +79,7 @@ interface GmailMessage {
 }
 
 function header(message: GmailMessage, name: string): string {
-  return (
-    message.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())
-      ?.value ?? ""
-  );
+  return message.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? "";
 }
 
 function findPart(part: GmailPart | undefined, mime: string): string | null {
@@ -126,10 +120,7 @@ async function gmailList(unreadOnly: boolean, query: string, limit: number) {
 }
 
 async function gmailRead(id: string) {
-  const message = await api<GmailMessage>(
-    "gmail",
-    `${GMAIL}/messages/${encodeURIComponent(id)}?format=full`,
-  );
+  const message = await api<GmailMessage>("gmail", `${GMAIL}/messages/${encodeURIComponent(id)}?format=full`);
   const plain = findPart(message.payload, "text/plain");
   const html = plain ? null : findPart(message.payload, "text/html");
   return {
@@ -143,9 +134,7 @@ async function gmailRead(id: string) {
 
 function encodeHeader(value: string): string {
   // Non-ASCII header values must be RFC 2047 encoded.
-  return /^[\x20-\x7e]*$/.test(value)
-    ? value
-    : `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+  return /^[\x20-\x7e]*$/.test(value) ? value : `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
 }
 
 function rfc822(mail: OutgoingMail): string {
@@ -157,7 +146,9 @@ function rfc822(mail: OutgoingMail): string {
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",
     "",
-    Buffer.from(mail.body, "utf8").toString("base64").replace(/(.{76})/g, "$1\r\n"),
+    Buffer.from(mail.body, "utf8")
+      .toString("base64")
+      .replace(/(.{76})/g, "$1\r\n"),
   ];
   return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
 }
@@ -194,10 +185,7 @@ async function outlookList(unreadOnly: boolean, query: string, limit: number) {
     params.set("$orderby", "receivedDateTime desc");
     if (unreadOnly) params.set("$filter", "isRead eq false");
   }
-  const list = await api<{ value: GraphMessage[] }>(
-    "outlook",
-    `${GRAPH}/mailFolders/inbox/messages?${params}`,
-  );
+  const list = await api<{ value: GraphMessage[] }>("outlook", `${GRAPH}/mailFolders/inbox/messages?${params}`);
   return list.value
     .filter((message) => !(query && unreadOnly) || message.isRead === false)
     .map<MailSummary>((message) => ({
@@ -227,8 +215,7 @@ async function outlookRead(id: string) {
 }
 
 function graphMessage(mail: OutgoingMail) {
-  const recipients = (addresses: string[] = []) =>
-    addresses.map((address) => ({ emailAddress: { address } }));
+  const recipients = (addresses: string[] = []) => addresses.map((address) => ({ emailAddress: { address } }));
   return {
     subject: mail.subject,
     body: { contentType: "Text", content: mail.body },

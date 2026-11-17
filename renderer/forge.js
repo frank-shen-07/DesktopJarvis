@@ -141,7 +141,14 @@
     for (let i = 0; i < count; i += 1) {
       const angle = Math.random() * TAU;
       const push = speed * (0.3 + Math.random());
-      sparks.push({ x, y, vx: Math.cos(angle) * push, vy: Math.sin(angle) * push - speed * 0.5, age: 0, life: 16 + Math.random() * 22 });
+      sparks.push({
+        x,
+        y,
+        vx: Math.cos(angle) * push,
+        vy: Math.sin(angle) * push - speed * 0.5,
+        age: 0,
+        life: 16 + Math.random() * 22,
+      });
     }
   }
 
@@ -245,7 +252,13 @@
     if (mouth && target && target.lit) {
       for (let i = 0; i < Math.round(4 * step + Math.random()); i += 1) {
         if (jet.length > 160) break;
-        jet.push({ t: 0, pace: 0.07 + Math.random() * 0.06, sway: (Math.random() - 0.5) * 2, seed: Math.random() * TAU, size: 0.7 + Math.random() * 0.6 });
+        jet.push({
+          t: 0,
+          pace: 0.07 + Math.random() * 0.06,
+          sway: (Math.random() - 0.5) * 2,
+          seed: Math.random() * TAU,
+          size: 0.7 + Math.random() * 0.6,
+        });
       }
     }
     if (mouth && target) {
@@ -265,7 +278,9 @@
         const belly = Math.sin(flame.t * Math.PI) * spread * flame.sway + Math.sin(time / 70 + flame.seed) * 2.5;
         const x = mouth.x + dx * flame.t + sideX * belly;
         const y = mouth.y + dy * flame.t + sideY * belly;
-        const heat = flame.t < 0.25 ? 0 : flame.t < 0.6 ? 1 : 2;
+        let heat = 2;
+        if (flame.t < 0.25) heat = 0;
+        else if (flame.t < 0.6) heat = 1;
         stamp(HEAT[heat], x, y, mix(7, 19, flame.t) * flame.size, 0.42 * (1 - flame.t * 0.45));
       }
       jet = jet.filter((flame) => flame.t < 1);

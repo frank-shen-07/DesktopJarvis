@@ -1,4 +1,4 @@
-import { ChildProcess, execFile, spawn } from "child_process";
+import { type ChildProcess, execFile, spawn } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
 import net from "net";
@@ -127,7 +127,9 @@ export function stopLocalVoice(): void {
 
 function run(command: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    execFile(command, args, (error, _stdout, stderr) => (error ? reject(new Error(stderr.trim() || error.message)) : resolve()));
+    execFile(command, args, (error, _stdout, stderr) =>
+      error ? reject(new Error(stderr.trim() || error.message)) : resolve(),
+    );
   });
 }
 
@@ -170,9 +172,9 @@ function writeWav(samples: Int16Array): Buffer {
 function loudness(samples: Int16Array): number[] {
   const window = SAMPLE_RATE / 10;
   const levels: number[] = [];
-  for (let start = 0; start + window <= samples.length; start += window) {
+  for (let offset = 0; offset + window <= samples.length; offset += window) {
     let sum = 0;
-    for (let i = start; i < start + window; i += 1) sum += samples[i] * samples[i];
+    for (let i = offset; i < offset + window; i += 1) sum += samples[i] * samples[i];
     levels.push(Math.sqrt(sum / window));
   }
   return levels;
@@ -197,8 +199,8 @@ export async function saveReference(audio: Buffer, filename: string): Promise<Bu
     const peak = Math.max(...levels, 1);
     const first = levels.findIndex((level) => level > peak * 0.08);
     if (first < 0) throw new Error("The recording is silent");
-    const start = Math.max(0, first - 1);
-    const available = levels.length - start;
+    const begin = Math.max(0, first - 1);
+    const available = levels.length - begin;
     if (available < 30) throw new Error("The free voice needs at least three seconds of speech");
 
     let length = Math.min(available, 100);
@@ -206,13 +208,13 @@ export async function saveReference(audio: Buffer, filename: string): Promise<Bu
       // Find the quietest moment between six and ten seconds in, and stop there.
       let quietest = Infinity;
       for (let i = 60; i < Math.min(available, 100); i += 1) {
-        if (levels[start + i] < quietest) {
-          quietest = levels[start + i];
+        if (levels[begin + i] < quietest) {
+          quietest = levels[begin + i];
           length = i + 1;
         }
       }
     }
-    const clip = samples.slice(start * (SAMPLE_RATE / 10), (start + length) * (SAMPLE_RATE / 10));
+    const clip = samples.slice(begin * (SAMPLE_RATE / 10), (begin + length) * (SAMPLE_RATE / 10));
     const fade = Math.min(clip.length, SAMPLE_RATE / 20);
     for (let i = 0; i < fade; i += 1) clip[clip.length - 1 - i] = Math.round(clip[clip.length - 1 - i] * (i / fade));
     const file = writeWav(clip);

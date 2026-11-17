@@ -1,4 +1,4 @@
-import { MailSummary } from "./mail";
+import { type MailSummary } from "./mail";
 
 /**
  * The board: cards DesktopJarvis puts on screen beside what it says, so a list of events,
@@ -40,7 +40,10 @@ const midnight = (date: Date) => new Date(date.getFullYear(), date.getMonth(), d
 /** "Today", "Tomorrow" or "Yesterday" where one applies. */
 function nearDay(date: Date, now = new Date()): string | null {
   const days = Math.round((midnight(date) - midnight(now)) / DAY);
-  return days === 0 ? "Today" : days === 1 ? "Tomorrow" : days === -1 ? "Yesterday" : null;
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days === -1) return "Yesterday";
+  return null;
 }
 
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -61,6 +64,13 @@ export interface CalendarEvent {
   location?: unknown;
 }
 
+/** Whether an event is over or happening now; nothing for one still to come. */
+function timing(start: Date, end: Date, now: number): "past" | "now" | undefined {
+  if (end.getTime() < now) return "past";
+  if (start.getTime() <= now) return "now";
+  return undefined;
+}
+
 function eventCard(event: CalendarEvent, withDay: boolean, now: number): BoardCard {
   const start = new Date(Number(event.start) * 1000);
   const end = new Date(Number(event.end) * 1000);
@@ -71,7 +81,7 @@ function eventCard(event: CalendarEvent, withDay: boolean, now: number): BoardCa
     title: String(event.title || "Untitled event"),
     detail: event.location ? clip(String(event.location), 90) : undefined,
     tag: event.calendar ? String(event.calendar) : undefined,
-    state: allDay ? undefined : end.getTime() < now ? "past" : start.getTime() <= now ? "now" : undefined,
+    state: allDay ? undefined : timing(start, end, now),
   };
 }
 
@@ -146,7 +156,10 @@ const ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seven
 
 /** "Ada Lovelace <ada@example.com>" as just the name. */
 function senderName(from: string): string {
-  const name = from.replace(/<[^>]*>/g, "").replace(/["']/g, "").trim();
+  const name = from
+    .replace(/<[^>]*>/g, "")
+    .replace(/["']/g, "")
+    .trim();
   return name || from.replace(/[<>]/g, "").trim() || "Unknown sender";
 }
 
@@ -162,22 +175,33 @@ function received(iso: string, now = new Date()): string {
 
 /** Gmail's previews arrive with HTML entities left in. */
 function plain(text: string): string {
-  return text
-    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/[​-‏͏﻿]/g, "");
+  return (
+    text
+      .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      // Zero-width spaces, joiners, direction marks and byte-order marks.
+      .replace(/[\u200B-\u200F\uFEFF]|\u034F/g, "")
+  );
 }
+
+function mailTitle(options: { unreadOnly: boolean; query: string }): string {
+  if (options.query) return `Mail · “${clip(options.query, 28)}”`;
+  return options.unreadOnly ? "Unread mail" : "Inbox";
+}
+
+const SERVICE_NAMES: Record<MailSummary["account"], string> = { gmail: "Gmail", outlook: "Outlook" };
 
 export function mailSection(messages: MailSummary[], options: { unreadOnly: boolean; query: string }): BoardSection {
   const unread = messages.filter((message) => message.unread).length;
-  const service = messages[0]?.account === "outlook" ? "Outlook" : messages[0]?.account === "gmail" ? "Gmail" : "";
+  const account = messages[0]?.account;
+  const service = account ? SERVICE_NAMES[account] : "";
   return {
     kind: "mail",
-    title: options.query ? `Mail · “${clip(options.query, 28)}”` : options.unreadOnly ? "Unread mail" : "Inbox",
+    title: mailTitle(options),
     note: [service, unread ? `${unread} unread` : ""].filter(Boolean).join(" · ") || undefined,
     empty: options.unreadOnly ? "No unread mail" : "No mail found",
     cards: messages.map((message, index) => ({
@@ -210,7 +234,11 @@ export function messageSection(mail: { from: string; subject: string; received: 
 
 // ---------- Anything else DesktopJarvis decides to show ----------
 
-export function listSection(input: { title: string; checklist: boolean; items: { title: string; detail?: string; when?: string }[] }): BoardSection {
+export function listSection(input: {
+  title: string;
+  checklist: boolean;
+  items: { title: string; detail?: string; when?: string }[];
+}): BoardSection {
   return {
     kind: "list",
     title: clip(input.title, 48),

@@ -43,13 +43,7 @@ export interface Settings {
 }
 
 export type SecretName =
-  | "anthropic"
-  | "groq"
-  | "minimax"
-  | "agentKey"
-  | "googleClientSecret"
-  | "googleRefresh"
-  | "microsoftRefresh";
+  "anthropic" | "groq" | "minimax" | "agentKey" | "googleClientSecret" | "googleRefresh" | "microsoftRefresh";
 
 const defaults: Settings = {
   provider: "claude",

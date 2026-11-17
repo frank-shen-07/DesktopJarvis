@@ -244,6 +244,7 @@ export async function accessToken(provider: MailProvider): Promise<string> {
       `${label} sign-in has expired. Reconnect it in DesktopJarvis's Connections tab. (${
         error instanceof Error ? error.message : error
       })`,
+      { cause: error },
     );
   }
 }

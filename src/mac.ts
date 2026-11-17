@@ -8,34 +8,22 @@ export interface RunResult {
   code: number;
 }
 
-export function run(
-  file: string,
-  args: string[],
-  timeoutMs = 20_000,
-): Promise<RunResult> {
+export function run(file: string, args: string[], timeoutMs = 20_000): Promise<RunResult> {
   return new Promise((resolve) => {
-    execFile(
-      file,
-      args,
-      { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 },
-      (error, stdout, stderr) => {
-        const code = error
-          ? typeof (error as NodeJS.ErrnoException).code === "number"
-            ? ((error as unknown as { code: number }).code)
-            : 1
-          : 0;
-        resolve({ stdout: String(stdout), stderr: String(stderr), code });
-      },
-    );
+    execFile(file, args, { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 }, (error, stdout, stderr) => {
+      let code = 0;
+      if (error) {
+        // The process's exit code, or 1 when it failed without one (not found, timed out, killed).
+        const exitCode = (error as { code?: unknown }).code;
+        code = typeof exitCode === "number" ? exitCode : 1;
+      }
+      resolve({ stdout: String(stdout), stderr: String(stderr), code });
+    });
   });
 }
 
 /** Run AppleScript with arguments passed out-of-band, so nothing is interpolated. */
-export async function appleScript(
-  script: string,
-  args: string[] = [],
-  timeoutMs = 30_000,
-): Promise<string> {
+export async function appleScript(script: string, args: string[] = [], timeoutMs = 30_000): Promise<string> {
   const result = await run("/usr/bin/osascript", ["-e", script, ...args], timeoutMs);
   if (result.code !== 0) throw new Error(explainAutomationError(result.stderr));
   return result.stdout.trim();
@@ -61,19 +49,14 @@ function helperPath(): string {
 }
 
 /** Call the EventKit helper (Calendar and Reminders). Throws on {"error": …}. */
-export async function eventKit<T>(
-  command: string,
-  input: Record<string, unknown> = {},
-): Promise<T> {
+export async function eventKit<T>(command: string, input: Record<string, unknown> = {}): Promise<T> {
   // Access prompts block until the person answers, so allow a long wait.
   const result = await run(helperPath(), [command, JSON.stringify(input)], 120_000);
   let parsed: unknown;
   try {
     parsed = JSON.parse(result.stdout);
   } catch {
-    throw new Error(
-      result.stderr.trim() || "The calendar helper did not return a result",
-    );
+    throw new Error(result.stderr.trim() || "The calendar helper did not return a result");
   }
   if (parsed && typeof parsed === "object" && "error" in parsed) {
     throw new Error(String((parsed as { error: unknown }).error));
