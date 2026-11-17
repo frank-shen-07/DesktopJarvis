@@ -44,6 +44,8 @@ npm run app     # builds release/mac-arm64/DesktopJarvis.app
 npm run open    # launches it
 ```
 
+While working on the window, `npm run dev` opens the app with live reloading.
+
 Use the packaged app rather than `npm run dev` when testing Calendar, Reminders
 or Word: macOS only shows those permission prompts for the packaged build.
 Each rebuild is a new signature, so macOS asks for the permissions again.
@@ -108,7 +110,5 @@ this Mac or a private network. Hermes Agent works the same way at
 - `src/board.ts` the cards shown for calendar, reminders, mail and lists
 - `src/localVoice.ts`, `voice/server.py` the free voice that runs on this Mac
 - `native/theo-events.swift` Calendar and Reminders bridge
-- `renderer/` the interface (`dragon.js` is the hologram dragon behind the core,
-  `forge.js` the fire that draws the cards)
-- `renderer/styles/` one stylesheet per part of the window: `base.css` holds the shared
-  colours and fonts, and `dock.css`, `board.css`, `voice.css` and the rest each style one area
+- `renderer/` the window: React components with CSS Modules, built by Vite. See
+  `renderer/README.md` for how it is laid out and how to work on it

@@ -1,4 +1,4 @@
-"use strict";
+import { showView } from "../navigation";
 
 (() => {
   // `theo` is the bridge the preload script exposes on window.
@@ -12,19 +12,7 @@
 
   let state = null;
 
-  // ---------------------------------------------------------------- Navigation
-
-  function showView(name) {
-    for (const view of document.querySelectorAll(".view")) view.hidden = view.id !== `view-${name}`;
-    for (const item of document.querySelectorAll(".dock-item")) {
-      if (item.dataset.view === name) item.setAttribute("aria-current", "page");
-      else item.removeAttribute("aria-current");
-    }
-  }
-
-  for (const item of document.querySelectorAll(".dock-item")) {
-    item.addEventListener("click", () => showView(item.dataset.view));
-  }
+  // ---------------------------------------------------------------- Helpers
 
   function openLink(url) {
     theo.invoke("open:external", url).catch(() => undefined);

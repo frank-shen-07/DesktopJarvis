@@ -81,7 +81,11 @@ function createWindow(): void {
       nodeIntegration: false,
     },
   });
-  void window.loadFile(path.join(app.getAppPath(), "renderer", "index.html"));
+  // `npm run dev` serves the window from Vite so edits show up straight away; otherwise
+  // it is the copy Vite built into dist/renderer.
+  const devServer = process.env.VITE_DEV_SERVER_URL;
+  if (devServer && !app.isPackaged) void window.loadURL(devServer);
+  else void window.loadFile(path.join(app.getAppPath(), "dist", "renderer", "index.html"));
   window.once("ready-to-show", () => window?.show());
   // Closing the window keeps DesktopJarvis in the menu bar, ready for the shortcut.
   window.on("close", (event) => {

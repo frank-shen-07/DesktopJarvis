@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "node"],
+  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "node", "react", "jsx-a11y"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -24,12 +24,14 @@
     "promise/always-return": "off",
     "promise/no-callback-in-promise": "off",
     "oxc/no-map-spread": "off",
-    "unicorn/no-array-sort": "off"
+    "unicorn/no-array-sort": "off",
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": "off"
   },
   "overrides": [
-    { "files": ["src/**/*.ts", "scripts/**/*.mjs"], "env": { "node": true } },
+    { "files": ["src/**/*.ts", "scripts/**/*.mjs", "vite.config.mts"], "env": { "node": true } },
     {
-      "files": ["renderer/**/*.js"],
+      "files": ["renderer/**/*.{js,ts,tsx}"],
       "env": { "browser": true },
       "globals": { "theoDragon": "readonly", "theoForge": "readonly", "theoHearing": "readonly" }
     }

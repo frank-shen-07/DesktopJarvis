@@ -8,8 +8,8 @@
     "build:ts": "tsc -p tsconfig.json",
     "build:native": "mkdir -p native/bin && swiftc -O native/theo-events.swift -o native/bin/theo-events",
     "build:icon": "node scripts/make-icon.mjs",
-    "build": "npm run build:ts && npm run build:native && npm run build:icon",
-    "dev": "npm run build && env -u ELECTRON_RUN_AS_NODE electron .",
+    "build": "npm run build:ts && npm run build:renderer && npm run build:native && npm run build:icon",
+    "dev": "npm run build:ts && npm run build:native && npm run build:icon && node scripts/dev.mjs",
     "app": "npm run build && env -u ELECTRON_RUN_AS_NODE electron-builder --mac dir",
     "open": "open release/mac-arm64/DesktopJarvis.app",
     "voice:setup": "sh voice/setup.sh",
@@ -17,14 +17,14 @@
     "lint:fix": "oxlint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run format:check && tsc -p tsconfig.json --noEmit"
+    "check": "npm run lint && npm run format:check && tsc -p tsconfig.json --noEmit && tsc -p renderer/tsconfig.json",
+    "build:renderer": "vite build"
   },
   "build": {
     "appId": "app.theo.assistant",
     "productName": "DesktopJarvis",
     "files": [
       "dist/**",
-      "renderer/**",
       "package.json"
     ],
     "extraResources": [
@@ -62,11 +62,17 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
     "electron": "^45.3.3",
     "electron-builder": "^26.18.0",
     "oxlint": "^1.94.0",
     "prettier": "^3.10.1",
-    "typescript": "^7.0.2"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0"
