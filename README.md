@@ -4,6 +4,12 @@ A Mac app you talk to. It answers in a cloned voice and can act on your Mac:
 open apps and files, create Word documents, read and add Calendar events and
 Reminders, read and send Gmail and Outlook mail, and browse the web.
 
+## Screenshots
+
+![Talk tab](docs/screenshots/talk.png)
+
+![Connections tab](docs/screenshots/connections.png)
+
 ## Run it
 
 ```bash
