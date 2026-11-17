@@ -4,6 +4,17 @@ A Mac app you talk to. It answers in a cloned voice and can act on your Mac:
 open apps and files, create Word documents, read and add Calendar events and
 Reminders, read and send Gmail and Outlook mail, and browse the web.
 
+## Documentation
+
+The full guides are in [`docs/`](docs/README.md):
+
+- [Getting started](docs/getting-started.md): install, keys and your first conversation
+- [Using DesktopJarvis](docs/using.md): ways to talk, what it can do, the cards, settings
+- [Connections and services](docs/connections.md): Gmail, Outlook, Calendar, models, voices
+- [Privacy and safety](docs/privacy-and-safety.md): what leaves your Mac, and what asks first
+- [Troubleshooting](docs/troubleshooting.md)
+- [How the code fits together](docs/architecture.md) and the [development guide](docs/development.md)
+
 ## Screenshots
 
 “What’s on my calendar tomorrow?” DesktopJarvis answers out loud and the dragon draws the day as cards:
