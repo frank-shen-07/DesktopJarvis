@@ -21,7 +21,6 @@ The full guides are in [`docs/`](docs/README.md):
 - [Troubleshooting](docs/troubleshooting.md)
 - [How the code fits together](docs/architecture.md) and the [development guide](docs/development.md)
 
-
 ## How a turn goes
 
 DesktopJarvis answers in pieces instead of all at once:

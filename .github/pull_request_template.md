@@ -13,6 +13,6 @@
 - [ ] `npm run check` passes
 - [ ] Tried in the app
 - [ ] Screenshots before and after, for visual changes
-- [ ] Still usable by keyboard and screen reader, for interface changes (see `ACCESSIBILITY.md`)
+- [ ] Still usable by keyboard and screen reader, for interface changes (see `docs/ACCESSIBILITY.md`)
 - [ ] Docs updated, if behaviour or setup changed
 - [ ] No real API keys, tokens, emails or calendar data in code, screenshots or logs

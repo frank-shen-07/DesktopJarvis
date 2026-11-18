@@ -1,7 +1,8 @@
 # Handover
 
 Where DesktopJarvis stands as of 18 November 2026, and what is left to do. For how to run
-it and what it does, see `README.md`; for the window's code, see `renderer/README.md`.
+it and what it does, see the [README](../README.md); for the window's code, see
+[`renderer/README.md`](../renderer/README.md).
 
 ## What it is
 
@@ -89,7 +90,7 @@ legacy code switch tabs the same way (`showView()`).
 
 ### 1. Replace the code-drawn dragon with a Blender model (in progress)
 
-Fully written up in `TODO.md`: how the current dragon works, how to model it (head facing
+Fully written up in [`TODO.md`](TODO.md): how the current dragon works, how to model it (head facing
 the camera, about 2 units wide, under ~50k triangles), the shape keys it needs (`JawOpen`,
 `Blink`, optional `Snarl`), the `Mouth` empty that `forge.js` aims the fire from, export
 settings, and the plan for wiring it in with three.js. **Waiting on** the model file at
