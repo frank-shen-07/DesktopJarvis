@@ -546,7 +546,7 @@
   });
 
   function updatePose(state) {
-    const { time, elapsed, phase, loudness, voiced, still, forge } = state;
+    const { time, elapsed, phase, loudness, voiced, still, forge, gaze } = state;
     if (still) {
       // Reduced motion: no turning, swaying or flapping; the head holds one calm pose.
       Object.assign(pose, {
@@ -602,10 +602,19 @@
       heat = 0.75 + level * 0.5;
     }
 
+    if (gaze && !forge) {
+      // Reading the cards on the board: head turned to the one it is on, unless the
+      // pointer has its attention. It still talks and listens as usual.
+      const look = 1 - pose.follow;
+      yaw = mix(yaw, clamp(gaze.x / (state.R * 2.4), -1, 1) * 0.62, look);
+      pitch = mix(pitch, REST_PITCH - clamp(gaze.y / (state.R * 2), -1, 1) * 0.34, look);
+      roll = mix(roll, -clamp(gaze.x / (state.R * 2.4), -1, 1) * 0.08, look);
+    }
+
     if (forge) {
-      // Drawing a card: head down and turned to where the fire lands, jaws wide, burning hot.
+      // Drawing a card: head turned to where the fire lands, jaws wide, burning hot.
       yaw = clamp(forge.x / (state.R * 2.4), -1, 1) * 0.62;
-      pitch = REST_PITCH - 0.34;
+      pitch = REST_PITCH - 0.1 - clamp(forge.y / (state.R * 2), -1, 1) * 0.3;
       roll = -yaw * 0.14;
       jaw = 0.5 + 0.05 * Math.sin(time / 90);
       lean = 1.05;
@@ -1476,8 +1485,9 @@
 
   /**
    * Draw one frame, centred on the current origin of `pen`.
-   * state: { R, time, elapsed, still, phase, loudness, voiced, forge }
+   * state: { R, time, elapsed, still, phase, loudness, voiced, forge, gaze }
    * `forge` is where fire is landing on the board, relative to the origin, or null.
+   * `gaze` is the card it is reading on the board, relative to the origin, or null.
    * Afterwards `api.mouth` holds where the mouth was drawn, relative to the same origin.
    */
   function draw(pen, state) {

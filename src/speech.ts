@@ -64,12 +64,17 @@ export async function transcribe(
  * Whisper uses to judge its own work (a stretch it thinks was silence, a guess it had to
  * retry, text that loops). `doubt` is empty when the words can be trusted.
  */
-export async function transcribeOverheard(audio: Buffer, groqKey: string): Promise<{ text: string; doubt: string }> {
-  const body = await whisper(audio, "audio/wav", groqKey, "verbose_json");
+export async function transcribeOverheard(
+  audio: Buffer,
+  groqKey: string,
+  mimeType = "audio/wav",
+  signal?: AbortSignal,
+): Promise<{ text: string; doubt: string; noSpeech: number }> {
+  const body = await whisper(audio, mimeType, groqKey, "verbose_json", signal);
   const text = (body.text ?? "").trim();
   // The wake word has to come first, so it is in the first stretch.
   const first = body.segments?.[0];
-  if (!first) return { text, doubt: "" };
+  if (!first) return { text, doubt: "", noSpeech: 0 };
   const noSpeech = first.no_speech_prob ?? 0;
   const confidence = first.avg_logprob ?? 0;
   let doubt = "";
@@ -77,7 +82,37 @@ export async function transcribeOverheard(audio: Buffer, groqKey: string): Promi
   else if ((first.temperature ?? 0) > 0) doubt = "the recogniser had to guess";
   else if (confidence < -1.4) doubt = "unclear";
   else if ((first.compression_ratio ?? 0) > 2.4) doubt = "garbled";
-  return { text, doubt };
+  return { text, doubt, noSpeech };
+}
+
+// What Whisper writes for a click, a breath or a quiet room. Heard on its own, it was not
+// said to DesktopJarvis. Short answers like "yeah" or "okay" are left out: they may be a reply.
+const FILLER = new Set([
+  "",
+  "you",
+  "thank you",
+  "thanks",
+  "thank you very much",
+  "thanks for watching",
+  "thank you for watching",
+  "bye",
+  "hmm",
+  "mm",
+  "uh",
+  "um",
+  "oh",
+  "ah",
+]);
+
+/** Whether what was heard is only what Whisper writes for noise. */
+export function onlyFiller(heard: string): boolean {
+  return FILLER.has(
+    heard
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 /** Text to speech in the given MiniMax voice. Returns one MP3 buffer. */
@@ -239,6 +274,16 @@ const GREETINGS = new Set([
   "morning",
   "afternoon",
   "evening",
+  "so",
+  "hmm",
+  "hm",
+  "right",
+  "alright",
+  "now",
+  "well",
+  "excuse",
+  "me",
+  "dear",
 ]);
 
 /**
@@ -261,12 +306,25 @@ export function afterWakeWord(heard: string, wakeWord: string): string | null {
   let tolerance = 0;
   if (target.length >= 9) tolerance = 2;
   else if (target.length >= 5) tolerance = 1;
+  // A name of 6+ letters heard two letters out ("Javas", "Jovis" for Jarvis) still counts when it
+  // starts and ends like the name, which a different name ("Davis") rarely does.
+  const close = (candidate: string, allowed: number) => {
+    const distance = editDistance(candidate, target);
+    if (distance <= allowed) return true;
+    return (
+      allowed > 0 &&
+      target.length >= 6 &&
+      distance <= allowed + 1 &&
+      candidate[0] === target[0] &&
+      candidate.at(-1) === target.at(-1)
+    );
+  };
   for (let start = 0; start <= 2 && start < tokens.length; start += 1) {
     if (start > 0 && !GREETINGS.has(letters(tokens[start - 1]))) break;
     for (const width of [span, span + 1, span - 1]) {
       if (width < 1) continue;
       const candidate = letters(tokens.slice(start, start + width).join(""));
-      if (candidate && editDistance(candidate, target) <= (width === span ? tolerance : 0)) {
+      if (candidate && close(candidate, width === span ? tolerance : 0)) {
         return tokens
           .slice(start + width)
           .join(" ")

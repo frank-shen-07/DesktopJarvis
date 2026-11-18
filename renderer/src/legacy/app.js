@@ -58,6 +58,21 @@ import { showView } from "../navigation";
   let lastFrame = 0;
   let coreSize = 0;
 
+  // With cards on the board, the dragon reads them one at a time, this long on each.
+  const READ_CARD_MS = 2600;
+
+  /** The point on the card the dragon is reading now, in window coordinates, or null. */
+  function cardInView(time) {
+    if (coreWrap.dataset.board !== "open") return null;
+    const cards = boardBody.querySelectorAll(".card");
+    if (!cards.length) return null;
+    const box = cards[Math.floor(time / READ_CARD_MS) % cards.length].getBoundingClientRect();
+    if (!box.width) return null;
+    // Its eyes run along the line it is reading.
+    const along = 0.5 + 0.3 * Math.sin(((time % READ_CARD_MS) / READ_CARD_MS) * Math.PI * 2);
+    return { x: box.left + box.width * along, y: box.top + box.height * 0.45 };
+  }
+
   /** The core: the dragon, with a ring of bars that follows the live audio. */
   function drawCore(time) {
     const ratio = devicePixelRatio || 1;
@@ -84,6 +99,7 @@ import { showView } from "../navigation";
     const centreX = box.left + width / 2;
     const centreY = box.top + height / 2;
     const landing = reducedMotion.matches ? null : theoForge.aim();
+    const reading = landing || reducedMotion.matches ? null : cardInView(time);
 
     const elapsed = Math.min(64, time - lastFrame);
     lastFrame = time;
@@ -115,6 +131,7 @@ import { showView } from "../navigation";
       loudness,
       voiced: Boolean(analyser),
       forge: landing && { x: landing.x - centreX, y: landing.y - centreY },
+      gaze: reading && { x: reading.x - centreX, y: reading.y - centreY },
     });
     pen.lineCap = "butt";
 
@@ -381,6 +398,8 @@ import { showView } from "../navigation";
       case "done":
         turnFinished = true;
         lastTurnOk = event.ok === true;
+        // Only noise was heard while the microphone was left open: nothing to show.
+        if (event.noise) turn.node.replaceChildren();
         if (event.empty) {
           turn.node.append(
             el("p", {
@@ -508,6 +527,12 @@ import { showView } from "../navigation";
   // How long a pause counts as the end of a request. Shorter answers sooner, but cuts in
   // on people who stop to think mid-sentence.
   const END_OF_REQUEST_MS = 2000;
+  // What sounds like someone speaking while the microphone is open: this share of its energy
+  // between these pitches, unbroken for this long.
+  const VOICE_LOW_HZ = 90;
+  const VOICE_HIGH_HZ = 3500;
+  const VOICE_SHARE = 0.6;
+  const WORD_MS = 160;
 
   let recorder = null;
   let micStream = null;
@@ -578,7 +603,7 @@ import { showView } from "../navigation";
       }
       pendingTurnNode = newTurnNode();
       setPhase("working", "Working out what you said");
-      theo.invoke("talk:audio", audio, "audio/webm");
+      theo.invoke("talk:audio", audio, "audio/webm", auto);
     });
     recorder.start();
     if (!auto && !spaceHeld) {
@@ -589,27 +614,53 @@ import { showView } from "../navigation";
 
     if (!auto) return;
     // Tap-to-talk: send after a pause, give up if nothing is said.
+    // Counted as speech only when it sounds like a voice, not just loud: most of its energy in
+    // the range voices use, and lasting as long as a short word. A key press or a mouse click
+    // is over in a few hundredths of a second and spread across all pitches.
     const startedAt = performance.now();
     let spokeAt = 0;
     let quietSince = 0;
+    let voicedMs = 0;
+    let lastTick = startedAt;
     const level = new Float32Array(micAnalyser.fftSize);
+    const bands = new Float32Array(micAnalyser.frequencyBinCount);
+    const binHz = audioContext.sampleRate / micAnalyser.fftSize;
+    const voiceLow = Math.floor(VOICE_LOW_HZ / binHz);
+    const voiceHigh = Math.ceil(VOICE_HIGH_HZ / binHz);
     vadTimer = setInterval(() => {
+      const now = performance.now();
+      const step = now - lastTick;
+      lastTick = now;
       micAnalyser.getFloatTimeDomainData(level);
       let sum = 0;
       for (const value of level) sum += value * value;
-      const loud = Math.sqrt(sum / level.length) > 0.018;
-      const now = performance.now();
+      let loud = Math.sqrt(sum / level.length) > 0.018;
       if (loud) {
-        spokeAt ||= now;
+        micAnalyser.getFloatFrequencyData(bands);
+        let voice = 0;
+        let all = 0;
+        for (let i = 1; i < bands.length; i += 1) {
+          const power = 10 ** (bands[i] / 10);
+          all += power;
+          if (i >= voiceLow && i <= voiceHigh) voice += power;
+        }
+        loud = all > 0 && voice / all > VOICE_SHARE;
+      }
+      if (loud) {
+        voicedMs += step;
+        if (voicedMs >= WORD_MS) spokeAt ||= now;
         quietSince = 0;
-      } else if (spokeAt) {
-        quietSince ||= now;
-        if (now - quietSince > END_OF_REQUEST_MS) stopListening(true);
-      } else if (now - startedAt > 7000) {
-        stopListening(false);
+      } else {
+        voicedMs = 0;
+        if (spokeAt) {
+          quietSince ||= now;
+          if (now - quietSince > END_OF_REQUEST_MS) stopListening(true);
+        } else if (now - startedAt > 7000) {
+          stopListening(false);
+        }
       }
       if (now - startedAt > 60_000) stopListening(Boolean(spokeAt));
-    }, 80);
+    }, 40);
   }
 
   function stopListening(send) {
@@ -691,8 +742,10 @@ import { showView } from "../navigation";
   // After DesktopJarvis has spoken or listened, the room is ignored for this long: what the
   // microphone picks up then is the tail of DesktopJarvis's own voice or of the conversation.
   const WAKE_REST_MS = 1200;
-  // Overheard sound, cut into stretches of speech that end at the same pause as a request.
-  const overheard = theoHearing.createSegmenter({ pauseMs: END_OF_REQUEST_MS });
+  // Overheard sound, cut into stretches of speech. A shorter pause than a request's, so a lone
+  // "Jarvis" is checked sooner; if a request is split at a pause, the microphone opens for the rest.
+  const WAKE_PAUSE_MS = 1200;
+  const overheard = theoHearing.createSegmenter({ pauseMs: WAKE_PAUSE_MS });
 
   function wakeActive() {
     return Boolean(state?.settings.wakeEnabled && state.keys.groq && state.settings.wakeWord.trim());
@@ -1250,6 +1303,26 @@ import { showView } from "../navigation";
   $("#confirm-scripts").addEventListener("change", async (event) =>
     applyState(await theo.invoke("settings:update", { confirmScripts: event.target.checked })),
   );
+  // Choosing a listed Groq model saves it at once; "Another model…" opens a box to type a name.
+  let typingGroqModel = false;
+  $("#groq-model-choice").addEventListener("change", async (event) => {
+    typingGroqModel = !event.target.value;
+    if (typingGroqModel) {
+      showGroqModel(state.settings.groqModel);
+      $("#groq-model").focus();
+      return;
+    }
+    applyState(await theo.invoke("settings:update", { groqModel: event.target.value }));
+  });
+
+  function showGroqModel(model) {
+    const choice = $("#groq-model-choice");
+    const listed = !typingGroqModel && [...choice.options].some((option) => option.value && option.value === model);
+    choice.value = listed ? model : "";
+    $("#groq-model-other").hidden = listed;
+    $("#groq-model-other-hint").hidden = listed;
+  }
+
   $("#model").addEventListener("change", async (event) =>
     applyState(await theo.invoke("settings:update", { model: event.target.value })),
   );
@@ -1272,6 +1345,7 @@ import { showView } from "../navigation";
     button.addEventListener("click", async () => {
       const input = document.getElementById(button.dataset.from);
       input.blur();
+      if (button.dataset.save === "groqModel") typingGroqModel = false;
       applyState(await theo.invoke("settings:update", { [button.dataset.save]: input.value.trim() }));
     });
   }
@@ -1379,6 +1453,7 @@ import { showView } from "../navigation";
     if (phase === "idle") setPhase("idle");
     $("#confirm-scripts").checked = settings.confirmScripts;
     $("#model").value = settings.model;
+    showGroqModel(settings.groqModel);
     $("#provider").value = settings.provider;
     $("#provider-hint").textContent = {
       claude: "",

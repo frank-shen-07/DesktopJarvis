@@ -2,20 +2,70 @@
 
 #view-talk {
   display: grid;
-  grid-template-columns: 236px minmax(260px, 1fr) minmax(300px, 360px);
-  gap: 18px;
+  grid-template-columns: minmax(0, 236px) minmax(260px, 1fr) minmax(0, 360px);
+  column-gap: 18px;
   padding: 18px 20px 6px;
+  transition:
+    grid-template-columns 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    column-gap 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* While the dragon shows cards, the side columns drift out and their room goes to the stage. */
+#view-talk:has(.core-wrap[data-board="open"]) {
+  grid-template-columns: minmax(0, 0px) minmax(260px, 1fr) minmax(0, 0px);
+  column-gap: 0;
 }
 
 .column {
   display: grid;
   gap: 14px;
   align-content: start;
+  min-width: 0;
   min-height: 0;
+  /* Clip panels that are wider than their narrowing column, leaving room for their glow. */
+  overflow: clip;
+  overflow-clip-margin: 14px;
+  transition:
+    opacity 260ms ease-out,
+    translate 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s;
+}
+
+/* The panels keep their width while their column narrows, so nothing reflows on the way out. */
+.column > .hud {
+  min-width: 236px;
 }
 
 .column-log {
   align-content: stretch;
+  justify-items: end;
+}
+.column-log > .hud {
+  width: 100%;
+  min-width: 300px;
+}
+
+#view-talk:has(.core-wrap[data-board="open"]) .column {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 200ms ease-in,
+    translate 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s 620ms;
+}
+#view-talk:has(.core-wrap[data-board="open"]) .column:first-child {
+  translate: -48px 0;
+}
+#view-talk:has(.core-wrap[data-board="open"]) .column-log {
+  translate: 48px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view-talk,
+  .column {
+    transition: none;
+  }
 }
 
 .readout {
