@@ -1,0 +1,48 @@
+# Runs on every pull request and every push to main: checks the code, runs the tests,
+# and makes sure the Mac app still builds.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, format, types and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test --if-present
+
+  build:
+    name: Build the Mac app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run app
+      - name: Zip the app
+        run: ditto -c -k --keepParent release/mac-arm64/DesktopJarvis.app DesktopJarvis-mac-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DesktopJarvis-mac-arm64
+          path: DesktopJarvis-mac-arm64.zip
+          retention-days: 14
