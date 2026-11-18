@@ -19,8 +19,8 @@ jobs:
     name: Lint, format, types and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -32,8 +32,8 @@ jobs:
     name: Build the Mac app
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -41,7 +41,7 @@ jobs:
       - run: npm run app
       - name: Zip the app
         run: ditto -c -k --keepParent release/mac-arm64/DesktopJarvis.app DesktopJarvis-mac-arm64.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: DesktopJarvis-mac-arm64
           path: DesktopJarvis-mac-arm64.zip
