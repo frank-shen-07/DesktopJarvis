@@ -15,17 +15,15 @@ The full guides are in [`docs/`](docs/README.md):
 - [Troubleshooting](docs/troubleshooting.md)
 - [How the code fits together](docs/architecture.md) and the [development guide](docs/development.md)
 
-## Screenshots
+## Demo
 
-“What’s on my calendar tomorrow?” DesktopJarvis answers out loud and the dragon draws the day as cards:
+[![DesktopJarvis drawing tomorrow's calendar as cards](docs/demo/demo.webp)](docs/demo/desktopjarvis-demo.mp4)
 
-![DesktopJarvis showing tomorrow's calendar as cards](docs/screenshots/calendar.png)
+[Watch the full demo with sound (0:59)](docs/demo/desktopjarvis-demo.mp4)
 
-“Anything I need to deal with today?” Unread mail and open reminders, with one ticked off:
-
-![DesktopJarvis showing unread mail and reminders as cards](docs/screenshots/inbox.png)
-
-The screenshots use made-up sample data.
+A minute with DesktopJarvis: it hears “What’s on tomorrow?”, clears the screen and draws
+the day as cards it reads out, then opens a new Word document when asked. The demo uses
+made-up sample data.
 
 ## How a turn goes
 
