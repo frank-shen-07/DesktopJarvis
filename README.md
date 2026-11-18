@@ -6,9 +6,8 @@ Reminders, read and send Gmail and Outlook mail, and browse the web.
 
 ## Demo
 
-[![DesktopJarvis drawing tomorrow's calendar as cards](docs/demo/demo.webp)](docs/demo/desktopjarvis-demo.mp4)
+https://github.com/user-attachments/assets/8cb0a9d0-b73e-4443-a562-a5f3c63663b7
 
-[Watch the full demo with sound (0:59)](docs/demo/desktopjarvis-demo.mp4)
 
 ## Documentation
 
