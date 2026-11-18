@@ -113,6 +113,7 @@ export function updateSettings(patch: Partial<Settings>): Settings {
 /** Secrets are encrypted with the macOS Keychain-backed key before touching disk. */
 export function setSecret(name: SecretName, value: string): void {
   const data = load();
+  unreadable.delete(name);
   if (!value) {
     delete data.secrets[name];
   } else if (safeStorage.isEncryptionAvailable()) {
@@ -123,16 +124,27 @@ export function setSecret(name: SecretName, value: string): void {
   save();
 }
 
+// Keys already reported as unreadable, so each is reported once rather than on every check.
+const unreadable = new Set<SecretName>();
+
 export function getSecret(name: SecretName): string {
   const stored = load().secrets[name];
   if (!stored?.startsWith("enc:")) return "";
   try {
     return safeStorage.decryptString(Buffer.from(stored.slice(4), "base64"));
-  } catch {
+  } catch (error) {
+    if (unreadable.has(name)) return "";
+    unreadable.add(name);
+    console.warn(`[theo] the saved ${name} key could not be decrypted, so it counts as missing:`, error);
     return "";
   }
 }
 
+/**
+ * Whether a key is saved that can still be read. A rebuilt copy of the app is signed
+ * differently, and macOS may then refuse it the Keychain key the old copy encrypted
+ * with: such a key is unusable, so it counts as missing and Settings asks for it again.
+ */
 export function hasSecret(name: SecretName): boolean {
-  return Boolean(load().secrets[name]);
+  return Boolean(getSecret(name));
 }
