@@ -444,6 +444,7 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
     await respond(
       heard,
       {
+        request: heard,
         confirm: confirmWithPerson,
         show: (section) => emit({ type: "board", section }),
         onToolStart: (id, label, fixed) => {

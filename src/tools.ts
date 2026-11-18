@@ -1,4 +1,6 @@
+import dns from "dns/promises";
 import fs from "fs";
+import net from "net";
 import os from "os";
 import path from "path";
 import {
@@ -16,6 +18,8 @@ import { isConnected, type MailProvider } from "./oauth";
 import { getSettings } from "./store";
 
 export interface ToolContext {
+  /** What the person asked for this turn, in their own words. */
+  request: string;
   /** Ask the person to approve an action. Resolves false if they decline. */
   confirm(request: { title: string; detail: string; action: string }): Promise<boolean>;
   /** Put a set of cards on screen beside what DesktopJarvis says. */
@@ -72,6 +76,120 @@ function mailAccount(input: Input): MailProvider {
   throw new Error(
     "No email account is connected. The person can connect Gmail or Outlook in DesktopJarvis's Connections tab.",
   );
+}
+
+// ---------- Guards against instructions hidden in emails and web pages ----------
+
+/** The host of the page last seen open in the person's browser. */
+let browserHost = "";
+
+function sameSite(host: string, named: string): boolean {
+  const a = host.toLowerCase().replace(/^www\./, "");
+  const b = named.toLowerCase().replace(/^www\./, "");
+  return a === b || a.endsWith(`.${b}`);
+}
+
+/**
+ * Pages the person pointed at themselves can be read without asking: a site they named
+ * this turn, or the page open in their browser. Anything else may have been suggested by
+ * an email or page, and fetching it could carry their data off in the address.
+ */
+function personChoseSite(host: string, request: string): boolean {
+  if (browserHost && sameSite(host, browserHost)) return true;
+  const named = request.toLowerCase().match(/\b[a-z0-9-]+(\.[a-z0-9-]+)+\b/g) ?? [];
+  return named.some((site) => sameSite(host, site));
+}
+
+function isPrivateAddress(address: string): boolean {
+  if (net.isIPv6(address)) {
+    const lower = address.toLowerCase();
+    if (lower.startsWith("::ffff:")) return isPrivateAddress(lower.slice(7));
+    return lower === "::1" || lower === "::" || /^f[cd]/.test(lower) || /^fe[89ab]/.test(lower);
+  }
+  const [a, b] = address.split(".").map(Number);
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a >= 224
+  );
+}
+
+/** Refuse addresses on this Mac or the local network, so pages can't be used to reach them. */
+async function assertPublic(url: URL): Promise<void> {
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) {
+    throw new Error("Pages on this Mac or the local network can't be read");
+  }
+  const addresses = net.isIP(host) ? [{ address: host }] : await dns.lookup(host, { all: true });
+  if (addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new Error("Pages on this Mac or the local network can't be read");
+  }
+}
+
+/** Fetch a public page, checking every redirect too. */
+async function fetchPublic(start: URL, signal: AbortSignal): Promise<Response> {
+  let url = start;
+  for (let hop = 0; hop < 5; hop += 1) {
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only http and https pages can be read");
+    await assertPublic(url);
+    const response = await fetch(url, {
+      redirect: "manual",
+      headers: { "User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/130 Safari/537.36" },
+      signal,
+    });
+    const next = response.headers.get("location");
+    if (response.status < 300 || response.status >= 400 || !next) return response;
+    url = new URL(next, url);
+  }
+  throw new Error("The page redirected too many times");
+}
+
+/** Files that run something when opened, rather than showing a document. */
+const RUNNABLE = new Set([
+  ".app",
+  ".command",
+  ".tool",
+  ".sh",
+  ".zsh",
+  ".bash",
+  ".csh",
+  ".py",
+  ".rb",
+  ".pl",
+  ".js",
+  ".scpt",
+  ".scptd",
+  ".applescript",
+  ".workflow",
+  ".terminal",
+  ".pkg",
+  ".mpkg",
+  ".dmg",
+  ".jar",
+  ".webloc",
+  ".inetloc",
+  ".fileloc",
+  ".shortcut",
+  ".prefpane",
+  ".mobileconfig",
+]);
+const SCRIPT_RUNNERS = /terminal|iterm|script editor|automator|python|launcher|warp|kitty|alacritty/i;
+
+function opensSomethingRunnable(target: string, app: string): boolean {
+  if (app && SCRIPT_RUNNERS.test(app)) return true;
+  if (RUNNABLE.has(path.extname(target).toLowerCase())) return true;
+  try {
+    const stat = fs.statSync(target);
+    // An extensionless file marked executable opens in Terminal and runs.
+    return stat.isFile() && path.extname(target) === "" && (stat.mode & 0o111) !== 0;
+  } catch {
+    return false;
+  }
 }
 
 const FILE_KINDS: Record<string, string[]> = {
@@ -173,10 +291,18 @@ export const tools: TheoTool[] = [
       required: ["path"],
     },
     label: (input) => `Opening ${path.basename(text(input, "path", false)) || "the file"}`,
-    async run(input) {
+    async run(input, context) {
       const target = expandHome(text(input, "path"));
       if (!fs.existsSync(target)) throw new Error(`Nothing exists at ${target}`);
       const app = text(input, "app", false);
+      if (opensSomethingRunnable(target, app)) {
+        const approved = await context.confirm({
+          title: "Open something that can run on this Mac?",
+          detail: app ? `${target}\nwith ${app}` : target,
+          action: "Open it",
+        });
+        if (!approved) return { opened: false, reason: "The person chose not to open it" };
+      }
       const result = await run("/usr/bin/open", app ? ["-a", app, target] : [target]);
       if (result.code !== 0) throw new Error(result.stderr.trim());
       return { opened: target };
@@ -485,13 +611,18 @@ export const tools: TheoTool[] = [
       required: ["url"],
     },
     label: () => "Reading the page",
-    async run(input) {
+    async run(input, context) {
       const url = new URL(text(input, "url"));
       if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only http and https pages can be read");
-      const response = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/130 Safari/537.36" },
-        signal: AbortSignal.timeout(15_000),
-      });
+      if (!personChoseSite(url.hostname, context.request)) {
+        const approved = await context.confirm({
+          title: `Read a page on ${url.hostname}?`,
+          detail: url.toString(),
+          action: "Read it",
+        });
+        if (!approved) return { read: false, reason: "The person chose not to read that page" };
+      }
+      const response = await fetchPublic(url, AbortSignal.timeout(15_000));
       if (!response.ok) throw new Error(`The page returned HTTP ${response.status}`);
       const body = htmlToText(await response.text());
       return { url: response.url, text: body.length > 15_000 ? `${body.slice(0, 15_000)} […page truncated]` : body };
@@ -513,6 +644,11 @@ export const tools: TheoTool[] = [
             'tell application "Safari" to return (URL of front document) & linefeed & (name of front document)',
           );
       const [url, title] = output.split("\n");
+      try {
+        browserHost = new URL(url).hostname;
+      } catch {
+        browserHost = "";
+      }
       return { browser: chromeRunning ? "Chrome" : "Safari", url, title };
     },
   },

@@ -52,13 +52,18 @@ conversation is kept in memory only and is gone when you quit.
 ```mermaid
 flowchart LR
     req[A request] --> tool{Which tool?}
-    tool -- reading: calendar, mail,<br/>reminders, files, web --> run[Runs straight away]
+    tool -- reading: calendar, mail,<br/>reminders, files --> run[Runs straight away]
+    tool -- read_webpage, open_file --> chosen{Site you named,<br/>or nothing runnable?}
+    chosen -- yes --> run
+    chosen -- no --> ask3[/You approve on screen/] --> run
     tool -- drafting email,<br/>adding events/reminders --> run
     tool -- send_email --> ask1[/You approve on screen/] --> run
     tool -- run_applescript --> ask2[/You approve on screen<br/>unless turned off/] --> run
 ```
 
 - **Sending email** always needs your approval. It drafts by default.
+- **Reading a web page** needs your approval unless it's on a site you named in your request or the page open in your browser, so a page suggested by an email can't quietly carry your data off in its address. Pages on your Mac or local network are never read.
+- **Opening something that can run**, such as an app, a script or an installer, or opening a file with Terminal, needs your approval.
 - **AppleScript** needs your approval while **Ask me before DesktopJarvis runs a custom script**
   is ticked. The model is also told never to use it to delete files, change security
   settings, or send messages.
