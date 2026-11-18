@@ -116,14 +116,14 @@ page you point them at, or the page open in your browser.
 
 ## The cards
 
-Calendar events, reminders, emails and lists DesktopJarvis makes appear as cards under the
-dragon, so you can look instead of listen.
+Calendar events, reminders, emails and lists DesktopJarvis makes appear as cards beside the
+dragon, so you can look instead of listen. While they are up, the side panels step aside.
 
 - **Tick a reminder** to complete it in the Reminders app.
 - **Click an email** to have it read out.
 - Press **Escape** or click **Close** to put the cards away.
 
-![Calendar cards](screenshots/calendar.png)
+![Tomorrow’s calendar as cards beside the dragon](demo/calendar-cards.jpg)
 
 ## Things that ask first
 

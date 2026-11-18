@@ -51,6 +51,9 @@
   align-items: center;
   flex-wrap: wrap;
 }
+.inline[hidden] {
+  display: none;
+}
 
 input[type="text"],
 input[type="password"],

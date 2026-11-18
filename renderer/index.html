@@ -232,12 +232,19 @@
             </select>
           </div>
           <div class="field" data-provider="groq">
-            <label for="groq-model">Groq model</label>
-            <div class="inline">
-              <input id="groq-model" type="text" spellcheck="false" />
+            <label for="groq-model-choice">Groq model</label>
+            <select id="groq-model-choice">
+              <option value="openai/gpt-oss-120b">GPT-OSS 120B (recommended)</option>
+              <option value="openai/gpt-oss-20b">GPT-OSS 20B (fastest, simpler requests)</option>
+              <option value="qwen/qwen3.8-27b">Qwen 3.8 27B</option>
+              <option value="minimaxai/minimax-m2.7">MiniMax M2.7</option>
+              <option value="">Another model…</option>
+            </select>
+            <div class="inline" id="groq-model-other">
+              <input id="groq-model" type="text" spellcheck="false" aria-label="Groq model name" />
               <button class="button" data-save="groqModel" data-from="groq-model">Save model</button>
             </div>
-            <p class="hint">Pick one that supports tool use from Groq’s model list.</p>
+            <p class="hint" id="groq-model-other-hint">Pick one that supports tool use from Groq’s model list.</p>
           </div>
           <div class="field" data-provider="local">
             <label for="local-url">Local server address</label>

@@ -10,7 +10,7 @@
     "build:icon": "node scripts/make-icon.mjs && node scripts/make-tray-icon.mjs",
     "build": "npm run build:ts && npm run build:renderer && npm run build:native && npm run build:icon",
     "dev": "npm run build:ts && npm run build:native && npm run build:icon && node scripts/dev.mjs",
-    "app": "npm run build && env -u ELECTRON_RUN_AS_NODE electron-builder --mac dir",
+    "app": "npm run build && env -u ELECTRON_RUN_AS_NODE electron-builder --mac dir && node scripts/sign-local.mjs",
     "open": "open release/mac-arm64/DesktopJarvis.app",
     "voice:setup": "sh voice/setup.sh",
     "lint": "oxlint",

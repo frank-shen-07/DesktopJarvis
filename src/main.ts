@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import {
   app,
@@ -28,14 +29,36 @@ import {
 } from "./localVoice";
 import { connectGmail, connectOutlook, disconnect, isConnected } from "./oauth";
 import { chooseAck, keptPhrase, preparePhrases, sentencesOf } from "./phrases";
-import { afterWakeWord, cloneVoice, forSpeech, synthesize, transcribe, transcribeOverheard } from "./speech";
+import {
+  afterWakeWord,
+  cloneVoice,
+  forSpeech,
+  onlyFiller,
+  synthesize,
+  transcribe,
+  transcribeOverheard,
+} from "./speech";
 import { getSecret, getSettings, hasSecret, type SecretName, setSecret, type Settings, updateSettings } from "./store";
 
 // The app used to be called Theo, and Electron names its data folder after the app.
 // Keep using the old folder so settings, mail sign-ins, the voice and cached phrases stay.
 app.setPath("userData", path.join(app.getPath("appData"), "theo-desktop"));
+// Saved keys are encrypted with a Keychain entry named after the app ("<name> Safe Storage").
+// `npm run dev` and the built app would otherwise go by different names, and so each could
+// not read keys the other saved into the same file. Pin the name so they share one entry.
+app.setName("desktop-jarvis");
 
 let window: BrowserWindow | null = null;
+// Print what was overheard and why it did or did not count: always while developing, and in the
+// built app when it is started with DESKTOPJARVIS_DEBUG=1.
+const showHearing = !app.isPackaged || process.env.DESKTOPJARVIS_DEBUG === "1";
+
+// The last few overheard clips, kept while showing what was heard, to listen to what was sent.
+let clipCount = 0;
+function keepClip(audio: Buffer): void {
+  const file = path.join(os.tmpdir(), `jarvis-wake-${clipCount++ % 10}.wav`);
+  fs.writeFile(file, audio, () => console.info(`[theo] wake: clip saved to ${file}`));
+}
 let tray: Tray | null = null;
 let quitting = false;
 let activeTurn: AbortController | null = null;
@@ -397,7 +420,12 @@ const QUIET_BEFORE_NAMING_STEP_MS = 1800;
 // A request that did not sound like work is acknowledged only if the answer is this slow.
 const SLOW_ANSWER_MS = 2000;
 
-async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: string }): Promise<void> {
+async function runTurn(input: {
+  audio?: ArrayBuffer;
+  mimeType?: string;
+  text?: string;
+  open?: boolean;
+}): Promise<void> {
   cancelActiveTurn();
   const controller = new AbortController();
   activeTurn = controller;
@@ -420,7 +448,24 @@ async function runTurn(input: { audio?: ArrayBuffer; mimeType?: string; text?: s
         throw new Error("Add a Groq API key in Settings so DesktopJarvis can hear you. Typing still works without it.");
       emit({ type: "status", status: "transcribing" });
       warmForThinking();
-      heard = await transcribe(Buffer.from(input.audio), input.mimeType ?? "audio/webm", groqKey, controller.signal);
+      const audio = Buffer.from(input.audio);
+      const mimeType = input.mimeType ?? "audio/webm";
+      if (input.open) {
+        // The microphone was left open for a follow-up, so it may have caught only a click or the
+        // room. Words Whisper itself doubts, or only writes for noise, are dropped without a word.
+        const overheard = await transcribeOverheard(audio, groqKey, mimeType, controller.signal);
+        if (showHearing) {
+          const verdict = overheard.doubt || (onlyFiller(overheard.text) ? "only filler" : "");
+          console.info(`[theo] follow-up: heard "${overheard.text}"${verdict ? `, ignored, ${verdict}` : ""}`);
+        }
+        if (overheard.doubt || onlyFiller(overheard.text)) {
+          emit({ type: "done", noise: true });
+          return;
+        }
+        heard = overheard.text;
+      } else {
+        heard = await transcribe(audio, mimeType, groqKey, controller.signal);
+      }
     }
     if (!heard) {
       emit({ type: "done", empty: true });
@@ -555,8 +600,8 @@ function registerSettingsIpc(): void {
 }
 
 function registerTalkIpc(): void {
-  ipcMain.handle("talk:audio", (_event, audio: ArrayBuffer, mimeType: string) => {
-    void runTurn({ audio, mimeType });
+  ipcMain.handle("talk:audio", (_event, audio: ArrayBuffer, mimeType: string, open?: boolean) => {
+    void runTurn({ audio, mimeType, open: open === true });
   });
   ipcMain.handle("talk:text", (_event, text: string) => {
     void runTurn({ text: String(text ?? "") });
@@ -576,18 +621,23 @@ function registerTalkIpc(): void {
     const settings = getSettings();
     const groqKey = getSecret("groq");
     if (!settings.wakeEnabled || !groqKey || activeTurn) return { matched: false };
-    let heard: { text: string; doubt: string };
+    let heard: { text: string; doubt: string; noSpeech: number };
     try {
       heard = await transcribeOverheard(Buffer.from(audio), groqKey);
+      if (showHearing) keepClip(Buffer.from(audio));
     } catch (error) {
       return { matched: false, error: error instanceof Error ? error.message : String(error) };
     }
-    const request = heard.doubt ? null : afterWakeWord(heard.text, settings.wakeWord);
+    // Whisper is not told to expect the wake word, so when it writes the wake word anyway, only
+    // near certainty that there was no speech is reason to doubt it. Whisper often thinks a single
+    // short word is probably not speech, so its usual threshold would throw away a plain "Jarvis".
+    const found = afterWakeWord(heard.text, settings.wakeWord);
+    const request = heard.noSpeech > 0.95 ? null : found;
     // While developing, show what was overheard and why it did or did not wake DesktopJarvis.
-    if (!app.isPackaged) {
+    if (showHearing) {
       let verdict = "woke DesktopJarvis";
-      if (heard.doubt) verdict = `ignored, ${heard.doubt}`;
-      else if (request === null) verdict = "ignored, no wake word at the start";
+      if (found === null) verdict = "ignored, no wake word at the start";
+      else if (request === null) verdict = "ignored, probably not speech";
       console.info(`[theo] wake: heard "${heard.text}", ${verdict}`);
     }
     if (request === null || activeTurn) return { matched: false };
