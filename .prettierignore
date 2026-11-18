@@ -3,3 +3,5 @@ release/
 native/bin/
 package-lock.json
 .impeccable/
+# Edited on github.com, where the editor leaves extra blank lines Prettier would fail CI on.
+README.md
