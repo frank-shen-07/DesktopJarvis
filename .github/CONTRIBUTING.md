@@ -26,7 +26,8 @@ Add your own Anthropic, Groq and MiniMax keys in the app's Settings tab. Test an
 touches Calendar, Reminders or Word with the packaged app: macOS only shows those permission
 prompts for the packaged build.
 
-`HANDOVER.md` describes how the code fits together, and `renderer/README.md` explains the
+[`docs/HANDOVER.md`](../docs/HANDOVER.md) describes how the code fits together, and
+[`renderer/README.md`](../renderer/README.md) explains the
 window's code and how to move an area of it into a React component.
 
 ## Making a change

@@ -1,7 +1,7 @@
 # Development guide
 
 How to build, run and change DesktopJarvis. For the rules on pull requests and commits, see
-[`CONTRIBUTING.md`](../CONTRIBUTING.md).
+[`CONTRIBUTING.md`](../.github/CONTRIBUTING.md).
 
 ## Commands
 

@@ -23,10 +23,13 @@ flowchart LR
     arch --> dev[Development guide]
 ```
 
-Other useful files at the top of the repository:
+Other useful files:
 
 - [`README.md`](../README.md): the short version.
-- [`HANDOVER.md`](../HANDOVER.md): where the project stands and what is left to do.
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md), [`SECURITY.md`](../SECURITY.md),
-  [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md).
+- [`HANDOVER.md`](HANDOVER.md): where the project stands and what is left to do, with the
+  details of the planned dragon model in [`TODO.md`](TODO.md).
+- [`ACCESSIBILITY.md`](ACCESSIBILITY.md): how DesktopJarvis works with a keyboard, screen
+  reader and reduced motion.
+- [`CONTRIBUTING.md`](../.github/CONTRIBUTING.md), [`SECURITY.md`](../.github/SECURITY.md),
+  [`CODE_OF_CONDUCT.md`](../.github/CODE_OF_CONDUCT.md), kept in `.github/`.
 - [`renderer/README.md`](../renderer/README.md): a closer look at the window's code.

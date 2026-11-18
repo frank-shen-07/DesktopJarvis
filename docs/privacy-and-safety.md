@@ -76,4 +76,4 @@ flowchart LR
 
 ## Found a problem?
 
-Report security issues privately, as described in [`SECURITY.md`](../SECURITY.md).
+Report security issues privately, as described in [`SECURITY.md`](../.github/SECURITY.md).

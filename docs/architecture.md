@@ -216,7 +216,7 @@ flowchart LR
   settings and connections.
 - **`legacy/dragon.js`** draws the hologram dragon on a canvas each frame from the app's
   state: the pointer, voice loudness, the phase, and where the fire is going. It is due to be
-  replaced by a Blender model; see `TODO.md`.
+  replaced by a Blender model; see [`TODO.md`](TODO.md).
 - **`legacy/forge.js`** draws the jet of fire from the dragon's mouth to each card.
 - **`legacy/hearing.js`** decides when someone is talking, for the wake word and tap-to-talk.
 - **`navigation.ts`** is the one place that knows which tab is showing, so React and legacy
