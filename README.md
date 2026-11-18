@@ -4,6 +4,12 @@ A Mac app you talk to. It answers in a cloned voice and can act on your Mac:
 open apps and files, create Word documents, read and add Calendar events and
 Reminders, read and send Gmail and Outlook mail, and browse the web.
 
+## Demo
+
+[![DesktopJarvis drawing tomorrow's calendar as cards](docs/demo/demo.webp)](docs/demo/desktopjarvis-demo.mp4)
+
+[Watch the full demo with sound (0:59)](docs/demo/desktopjarvis-demo.mp4)
+
 ## Documentation
 
 The full guides are in [`docs/`](docs/README.md):
@@ -15,15 +21,6 @@ The full guides are in [`docs/`](docs/README.md):
 - [Troubleshooting](docs/troubleshooting.md)
 - [How the code fits together](docs/architecture.md) and the [development guide](docs/development.md)
 
-## Demo
-
-[![DesktopJarvis drawing tomorrow's calendar as cards](docs/demo/demo.webp)](docs/demo/desktopjarvis-demo.mp4)
-
-[Watch the full demo with sound (0:59)](docs/demo/desktopjarvis-demo.mp4)
-
-A minute with DesktopJarvis: it hears “What’s on tomorrow?”, clears the screen and draws
-the day as cards it reads out, then opens a new Word document when asked. The demo uses
-made-up sample data.
 
 ## How a turn goes
 
