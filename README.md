@@ -8,7 +8,6 @@ Reminders, read and send Gmail and Outlook mail, and browse the web.
 
 https://github.com/user-attachments/assets/8cb0a9d0-b73e-4443-a562-a5f3c63663b7
 
-
 ## Documentation
 
 The full guides are in [`docs/`](docs/README.md):
